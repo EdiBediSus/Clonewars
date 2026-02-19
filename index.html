@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLONE WAR — Battle Simulation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  * { margin:0;padding:0;box-sizing:border-box; }
+  body { background:#000;color:#e0e0e0;font-family:'Share Tech Mono',monospace;overflow:hidden;height:100vh;user-select:none; }
+  canvas { display:block; }
+
+  #hud { position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:10; }
+
+  #title-bar {
+    position:absolute;top:0;left:0;right:0;padding:12px 20px;
+    background:linear-gradient(180deg,rgba(0,0,0,0.9) 0%,transparent 100%);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .army-hud { display:flex;flex-direction:column;gap:4px;min-width:200px; }
+  .army-name { font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px; }
+  .army-hud.left .army-name { color:#00aaff; }
+  .army-hud.right .army-name { color:#ff4422;text-align:right; }
+  .stat-row { display:flex;gap:10px;font-size:9px;color:#aaa; }
+  .army-hud.right .stat-row { justify-content:flex-end; }
+  .stat-val { color:#fff; }
+  .health-bar-wrap { width:200px;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden; }
+  .army-hud.right .health-bar-wrap { margin-left:auto; }
+  .health-bar { height:100%;border-radius:3px;transition:width 0.4s; }
+  .army-hud.left  .health-bar { background:linear-gradient(90deg,#0055cc,#00ccff); }
+  .army-hud.right .health-bar { background:linear-gradient(90deg,#cc3300,#ff6600);float:right; }
+  #center-hud { text-align:center; }
+  #game-title { font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;letter-spacing:6px;color:#fff;text-shadow:0 0 20px rgba(255,200,0,0.5); }
+  #phase-display { font-size:9px;letter-spacing:4px;color:#ff0;margin-top:2px; }
+
+  #battle-log { position:absolute;bottom:72px;left:16px;width:260px;max-height:100px;overflow:hidden;pointer-events:none; }
+  .log-entry { font-size:9px;color:#aaa;line-height:1.7; }
+  .log-entry.blue { color:#44aaff; }
+  .log-entry.red  { color:#ff6644; }
+  .log-entry.system { color:#ffcc00; }
+
+  #mini-stats { position:absolute;bottom:72px;right:16px;text-align:right;font-size:9px;color:#555;line-height:2; }
+
+  #cam-hint {
+    position:absolute;top:56px;left:50%;transform:translateX(-50%);
+    font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.35);
+    background:rgba(0,0,0,0.55);padding:4px 12px;border-radius:2px;pointer-events:none;
+    transition:opacity 0.4s;
+  }
+
+  /* Controls */
+  #controls {
+    position:absolute;bottom:0;left:0;right:0;padding:12px 20px;
+    background:linear-gradient(0deg,rgba(0,0,0,0.92) 0%,transparent 100%);
+    display:flex;justify-content:center;gap:10px;pointer-events:all;
+  }
+  button {
+    font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;
+    letter-spacing:2px;padding:8px 18px;border:none;cursor:pointer;
+    text-transform:uppercase;transition:all 0.2s;
+  }
+  #btn-start { background:linear-gradient(135deg,#004488,#0088dd);color:#fff;box-shadow:0 0 16px rgba(0,140,255,0.35); }
+  #btn-start:hover { box-shadow:0 0 28px rgba(0,140,255,0.6);transform:translateY(-1px); }
+  #btn-reset  { background:rgba(255,255,255,0.07);color:#aaa;border:1px solid rgba(255,255,255,0.13); }
+  #btn-reset:hover { background:rgba(255,255,255,0.14);color:#fff; }
+  #btn-speed  { background:rgba(255,200,0,0.09);color:#ffcc00;border:1px solid rgba(255,200,0,0.28); }
+  #btn-speed:hover { background:rgba(255,200,0,0.18); }
+  #btn-settings { background:rgba(200,180,255,0.07);color:#ccaaff;border:1px solid rgba(200,180,255,0.18); }
+  #btn-settings:hover { background:rgba(200,180,255,0.14);color:#fff; }
+
+  /* Settings Panel */
+  #settings-panel {
+    display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:rgba(4,7,12,0.97);border:1px solid rgba(255,255,255,0.1);
+    padding:28px 30px;width:420px;z-index:50;pointer-events:all;
+    box-shadow:0 0 60px rgba(0,80,200,0.18);
+  }
+  #settings-panel.open { display:block; }
+  #settings-panel h2 { font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:4px;color:#fff;margin-bottom:20px; }
+  .setting-group { margin-bottom:18px; }
+  .setting-group > label { font-size:9px;letter-spacing:2px;color:#888;display:block;margin-bottom:7px;text-transform:uppercase; }
+  .setting-row { display:flex;align-items:center;gap:12px; }
+  .setting-row input[type=range] { flex:1;accent-color:#0088ff; }
+  .setting-row span { font-size:11px;color:#fff;min-width:28px;text-align:right; }
+  hr.sep { border:none;border-top:1px solid rgba(255,255,255,0.07);margin:16px 0; }
+
+  /* Face slots */
+  .face-grid { display:flex;gap:18px;margin-top:8px; }
+  .face-slot { display:flex;flex-direction:column;align-items:center;gap:6px; }
+  .face-preview {
+    width:56px;height:56px;border:1px solid rgba(255,255,255,0.15);
+    background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    font-size:7px;color:#444;letter-spacing:1px;cursor:pointer;position:relative;text-align:center;
+  }
+  .face-preview img { width:100%;height:100%;object-fit:cover;position:absolute;inset:0; }
+  .face-preview input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+  .face-lbl { font-size:8px;letter-spacing:2px; }
+  .face-lbl.blue { color:#44aaff; }
+  .face-lbl.red  { color:#ff6644; }
+
+  /* dev note */
+  .dev-note { font-size:8px;color:#555;line-height:1.6;margin-top:6px; }
+  .dev-note code { color:#888;background:rgba(255,255,255,0.05);padding:1px 4px; }
+
+  .panel-btns { display:flex;gap:10px;margin-top:20px; }
+  .btn-apply { background:linear-gradient(135deg,#004488,#0088dd);color:#fff;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;padding:8px 22px;border:none;cursor:pointer; }
+  .btn-close { background:rgba(255,255,255,0.07);color:#aaa;border:1px solid rgba(255,255,255,0.13);font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;padding:8px 22px;cursor:pointer; }
+
+  /* Victory */
+  #victory { display:none;position:absolute;inset:0;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;flex-direction:column;gap:14px;pointer-events:all; }
+  #victory.show { display:flex; }
+  #victory-title { font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;letter-spacing:8px; }
+  #victory-sub { font-size:11px;letter-spacing:4px;color:#aaa; }
+  .btn-again { background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.28);font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;padding:10px 26px;cursor:pointer;text-transform:uppercase; }
+
+  /* Crosshair */
+  #crosshair { display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20;width:2px;height:2px; }
+  #crosshair.show { display:block; }
+  #crosshair::before,#crosshair::after { content:'';position:absolute;background:rgba(255,255,255,0.55); }
+  #crosshair::before { width:14px;height:1px;top:0;left:-7px; }
+  #crosshair::after  { width:1px;height:14px;top:-7px;left:0; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+  <div id="title-bar">
+    <div class="army-hud left">
+      <div class="army-name">⬡ ALPHA BATTALION</div>
+      <div class="stat-row">
+        <span class="stat">ALIVE: <span class="stat-val" id="blue-alive">0</span></span>
+        <span class="stat">KILLS: <span class="stat-val" id="blue-kills">0</span></span>
+      </div>
+      <div class="health-bar-wrap"><div class="health-bar" id="blue-health" style="width:100%"></div></div>
+    </div>
+    <div id="center-hud">
+      <div id="game-title">CLONE WAR</div>
+      <div id="phase-display">STANDBY</div>
+    </div>
+    <div class="army-hud right">
+      <div class="army-name">OMEGA CORPS ⬡</div>
+      <div class="stat-row">
+        <span class="stat">KILLS: <span class="stat-val" id="red-kills">0</span></span>
+        <span class="stat">ALIVE: <span class="stat-val" id="red-alive">0</span></span>
+      </div>
+      <div class="health-bar-wrap"><div class="health-bar" id="red-health" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div id="cam-hint">CLICK CANVAS → WASD/QE MOVE · MOUSE LOOK · SHIFT SPRINT · ESC RELEASE</div>
+  <div id="battle-log"></div>
+  <div id="mini-stats">
+    <div id="stat-time">TIME: 00:00</div>
+    <div id="stat-shots">SHOTS: 0</div>
+    <div id="stat-fps">FPS: —</div>
+  </div>
+</div>
+
+<div id="crosshair"></div>
+
+<!-- Settings Panel -->
+<div id="settings-panel">
+  <h2>⚙ ARMY EDITOR</h2>
+
+  <div class="setting-group">
+    <label>Alpha Battalion — Troop Count</label>
+    <div class="setting-row">
+      <input type="range" id="blue-count" min="5" max="150" value="40" step="5">
+      <span id="blue-count-val">40</span>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>Omega Corps — Troop Count</label>
+    <div class="setting-row">
+      <input type="range" id="red-count" min="5" max="150" value="40" step="5">
+      <span id="red-count-val">40</span>
+    </div>
+  </div>
+
+  <div class="setting-group">
+    <label>HP per Soldier</label>
+    <div class="setting-row">
+      <input type="range" id="soldier-hp" min="1" max="12" value="3" step="1">
+      <span id="soldier-hp-val">3</span>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <div class="setting-group">
+    <label>Soldier Face Images</label>
+    <div class="face-grid">
+      <div class="face-slot">
+        <div class="face-preview" id="blue-face-preview">
+          <span>CLICK<br>TO UPLOAD</span>
+          <input type="file" accept="image/*" id="blue-face-input">
+        </div>
+        <div class="face-lbl blue">ALPHA</div>
+      </div>
+      <div class="face-slot">
+        <div class="face-preview" id="red-face-preview">
+          <span>CLICK<br>TO UPLOAD</span>
+          <input type="file" accept="image/*" id="red-face-input">
+        </div>
+        <div class="face-lbl red">OMEGA</div>
+      </div>
+    </div>
+    <div class="dev-note">
+      DEV TIP: Set <code>DEV_CONFIG.blueFaceImageUrl</code> or <code>redFaceImageUrl</code> in the JS to auto-load an <code>image.png</code> from the same folder without clicking.
+    </div>
+  </div>
+
+  <div class="panel-btns">
+    <button class="btn-apply" id="btn-apply">✓ APPLY &amp; REDEPLOY</button>
+    <button class="btn-close" id="btn-close-settings">CLOSE</button>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="btn-reset">↺ RESET</button>
+  <button id="btn-start">▶ DEPLOY</button>
+  <button id="btn-speed">SPEED: 1×</button>
+  <button id="btn-settings">⚙ ARMY EDITOR</button>
+</div>
+
+<div id="victory">
+  <div id="victory-title"></div>
+  <div id="victory-sub">BATTLE CONCLUDED</div>
+  <button class="btn-again" id="btn-again">FIGHT AGAIN</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DEVELOPER CONFIG
+// ═══════════════════════════════════════════════════════════════════
+// To auto-load face images without the file picker:
+//   1. Put your image file in the same folder as this HTML
+//   2. Set the filename below, e.g. 'my_face.png'
+const DEV_CONFIG = {
+  blueFaceImageUrl: null,   // e.g. 'blue_face.png'
+  redFaceImageUrl:  null,   // e.g. 'red_face.png'
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let CFG = { blueCount:40, redCount:40, soldierHp:3 };
+
+let scene, camera, renderer;
+let soldiers=[], bullets=[], particles=[];
+let running=false, gameSpeed=1;
+let blueKills=0, redKills=0, totalShots=0;
+let startTime=null, frameCount=0;
+let fpsLast=performance.now(), fpsCount=0;
+
+let blueFaceTex=null, redFaceTex=null;
+
+// Shared assets
+const S = {}; // shared geometries & materials
+
+const FIRE_RANGE=10, FIRE_CD=72, SOLDIER_SPD=0.02, BULLET_SPD=0.30;
+const MAX_BULLETS=140, MAX_PARTICLES=55;
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x03050a);
+  scene.fog = new THREE.FogExp2(0x03050a, 0.014);
+
+  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 200);
+  camera.position.set(0, 24, 36);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = false;
+
+  // Shared geos
+  S.gBody   = new THREE.BoxGeometry(0.36, 0.48, 0.21);
+  S.gHead   = new THREE.BoxGeometry(0.30, 0.27, 0.25);
+  S.gFace   = new THREE.PlaneGeometry(0.22, 0.18);
+  S.gVisor  = new THREE.BoxGeometry(0.22, 0.07, 0.03);
+  S.gLeg    = new THREE.BoxGeometry(0.13, 0.34, 0.13);
+  S.gArm    = new THREE.BoxGeometry(0.10, 0.32, 0.10);
+  S.gGun    = new THREE.BoxGeometry(0.05, 0.05, 0.34);
+  S.gStripe = new THREE.BoxGeometry(0.37, 0.05, 0.22);
+  S.gBullet = new THREE.BoxGeometry(0.07, 0.07, 0.22);
+  S.gPart   = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+
+  // Permanent shared materials
+  S.mGun    = new THREE.MeshLambertMaterial({ color:0x181818 });
+  S.mDead   = new THREE.MeshLambertMaterial({ color:0x151515 });
+  S.mBulletB= new THREE.MeshBasicMaterial({ color:0x00ddff });
+  S.mBulletR= new THREE.MeshBasicMaterial({ color:0xff4400 });
+  S.mPartB  = new THREE.MeshBasicMaterial({ color:0x0055ff, transparent:true });
+  S.mPartR  = new THREE.MeshBasicMaterial({ color:0xff2200, transparent:true });
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0x1a2233, 1.3));
+  const dir = new THREE.DirectionalLight(0xfff0dd, 1.0);
+  dir.position.set(12, 22, 8);
+  scene.add(dir);
+  scene.add(new THREE.HemisphereLight(0x0a1830, 0x0d1a06, 0.7));
+
+  buildScene();
+
+  if (DEV_CONFIG.blueFaceImageUrl) loadTexUrl(DEV_CONFIG.blueFaceImageUrl, 'blue');
+  if (DEV_CONFIG.redFaceImageUrl)  loadTexUrl(DEV_CONFIG.redFaceImageUrl,  'red');
+
+  window.addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+function loadTexUrl(url, team) {
+  new THREE.TextureLoader().load(url, tex=>{
+    if(team==='blue') blueFaceTex=tex; else redFaceTex=tex;
+  });
+}
+
+function buildScene() {
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(110, 75),
+    new THREE.MeshLambertMaterial({ color:0x0e1a0a })
+  );
+  ground.rotation.x = -Math.PI/2;
+  scene.add(ground);
+  scene.add(new THREE.GridHelper(110, 55, 0x0c180a, 0x0c180a));
+
+  // Shared rock geo
+  const rg = new THREE.DodecahedronGeometry(0.7, 0);
+  const rm = new THREE.MeshLambertMaterial({ color:0x383828 });
+  [[-6,2],[6,-3],[-9,6],[9,-7],[-3,-9],[3,9],[0,4],[0,-4],[-13,1],[13,-1],[0,0]].forEach(([x,z])=>{
+    const r = new THREE.Mesh(rg, rm);
+    r.position.set(x+(Math.random()-.5), 0.3, z+(Math.random()-.5));
+    r.rotation.y = Math.random()*Math.PI;
+    r.scale.set(.5+Math.random()*.9, .4+Math.random()*.6, .5+Math.random()*.9);
+    scene.add(r);
+  });
+
+  // Mountains
+  const mg = new THREE.ConeGeometry(5,12,5), mm = new THREE.MeshLambertMaterial({ color:0x060c06 });
+  for(let i=0;i<12;i++){
+    const mt = new THREE.Mesh(mg,mm);
+    mt.position.set(-50+i*9, 6, (i%2?1:-1)*36);
+    mt.scale.set(.7+Math.random()*.6,.6+Math.random()*.7,.7+Math.random()*.6);
+    scene.add(mt);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SOLDIER MESH
+// ═══════════════════════════════════════════════════════════════════
+function teamMats(team) {
+  if (S['m_'+team]) return S['m_'+team];
+  const b = team==='blue';
+  S['m_'+team] = {
+    armor : new THREE.MeshLambertMaterial({ color: b?0x0044aa:0xaa2000 }),
+    detail: new THREE.MeshLambertMaterial({ color: b?0x0099ff:0xff5500 }),
+    visor : new THREE.MeshLambertMaterial({ color: b?0x00ffee:0xff4400, emissive: b?0x003322:0x330800 }),
+  };
+  return S['m_'+team];
+}
+
+function makeSoldier(team) {
+  const g = new THREE.Group();
+  const m = teamMats(team);
+  const faceTex = team==='blue' ? blueFaceTex : redFaceTex;
+
+  const body = new THREE.Mesh(S.gBody, m.armor); body.position.y=0.50; g.add(body);
+  const head = new THREE.Mesh(S.gHead, m.armor); head.position.y=0.93; g.add(head);
+  const visor= new THREE.Mesh(S.gVisor,m.visor); visor.position.set(0,0.94,0.13); g.add(visor);
+
+  if (faceTex) {
+    const fm = new THREE.MeshBasicMaterial({ map:faceTex, transparent:true, depthWrite:false });
+    const fp = new THREE.Mesh(S.gFace, fm);
+    fp.position.set(0, 0.93, 0.13);
+    g.add(fp);
+  }
+
+  [-0.085, 0.085].forEach(ox=>{ const l=new THREE.Mesh(S.gLeg,m.armor); l.position.set(ox,.18,0); g.add(l); });
+  [-0.245, 0.245].forEach(ox=>{ const a=new THREE.Mesh(S.gArm,m.armor); a.position.set(ox,.51,0); g.add(a); });
+
+  const gun = new THREE.Mesh(S.gGun, S.mGun); gun.position.set(0.23,.55,.20); g.add(gun);
+  const str = new THREE.Mesh(S.gStripe,m.detail); str.position.set(0,.65,0); g.add(str);
+
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ARMY SPAWN
+// ═══════════════════════════════════════════════════════════════════
+function spawnArmies() {
+  soldiers.forEach(s=>scene.remove(s.mesh));
+  bullets.forEach(b=>scene.remove(b.mesh));
+  particles.forEach(p=>scene.remove(p.mesh));
+  soldiers=[]; bullets=[]; particles=[];
+  blueKills=0; redKills=0; totalShots=0; frameCount=0;
+  // Invalidate team mats so face textures rebuild
+  delete S.m_blue; delete S.m_red;
+
+  spawnTeam('blue', CFG.blueCount);
+  spawnTeam('red',  CFG.redCount);
+  updateHUD();
+}
+
+function spawnTeam(team, count) {
+  const cols = Math.ceil(Math.sqrt(count)*1.5);
+  for (let i=0;i<count;i++){
+    const col=i%cols, row=Math.floor(i/cols);
+    const xBase = team==='blue' ? -20 : 20;
+    const xDir  = team==='blue' ? 1 : -1;
+    const x = xBase + xDir*col*1.25 + (Math.random()-.5)*.3;
+    const z = -(Math.floor(count/cols)/2*1.25) + row*1.25 + (Math.random()-.5)*.3;
+    const mesh = makeSoldier(team);
+    mesh.position.set(x, 0, z);
+    if (team==='red') mesh.rotation.y=Math.PI;
+    scene.add(mesh);
+    soldiers.push({
+      mesh, team,
+      hp: CFG.soldierHp, maxHp: CFG.soldierHp,
+      alive: true,
+      fireCooldown: Math.random()*80,
+      bobOffset: Math.random()*Math.PI*2,
+      target: null, searchCd: 0,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BULLETS
+// ═══════════════════════════════════════════════════════════════════
+function fireBullet(fromPos, toPos, team) {
+  if (bullets.length >= MAX_BULLETS) return;
+  const mesh = new THREE.Mesh(S.gBullet, team==='blue'?S.mBulletB:S.mBulletR);
+  const origin = fromPos.clone().add(new THREE.Vector3(0,.6,0));
+  mesh.position.copy(origin);
+  const dir = toPos.clone().sub(fromPos).normalize();
+  mesh.lookAt(mesh.position.clone().add(dir));
+  scene.add(mesh);
+  bullets.push({ mesh, dir, team, life:52, hit:false });
+  totalShots++;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PARTICLES
+// ═══════════════════════════════════════════════════════════════════
+function spawnParticles(pos, team) {
+  const n = Math.min(4, MAX_PARTICLES - particles.length);
+  const baseMat = team==='blue' ? S.mPartB : S.mPartR;
+  for (let i=0;i<n;i++){
+    const mesh = new THREE.Mesh(S.gPart, baseMat.clone());
+    mesh.position.copy(pos).add(new THREE.Vector3(0,.7,0));
+    scene.add(mesh);
+    particles.push({
+      mesh,
+      vel: new THREE.Vector3((Math.random()-.5)*.12, Math.random()*.11+.03, (Math.random()-.5)*.12),
+      life: 22+Math.random()*14,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BATTLE UPDATE (optimised)
+// ═══════════════════════════════════════════════════════════════════
+let poolBlue=[], poolRed=[];
+
+function rebuildPools() {
+  poolBlue=[]; poolRed=[];
+  for(let i=0;i<soldiers.length;i++){
+    const s=soldiers[i];
+    if(s.alive){ if(s.team==='blue') poolBlue.push(s); else poolRed.push(s); }
+  }
+}
+
+function findNearest(soldier) {
+  const pool = soldier.team==='blue' ? poolRed : poolBlue;
+  if (!pool.length) return null;
+  let best=null, bd=1e9;
+  const px=soldier.mesh.position.x, pz=soldier.mesh.position.z;
+  for(let i=0;i<pool.length;i++){
+    const e=pool[i];
+    const dx=e.mesh.position.x-px, dz=e.mesh.position.z-pz;
+    const d=dx*dx+dz*dz;
+    if(d<bd){ bd=d; best=e; }
+  }
+  return best ? { enemy:best, dist:Math.sqrt(bd) } : null;
+}
+
+function updateSoldiers() {
+  rebuildPools();
+  for(let i=0;i<soldiers.length;i++){
+    const s=soldiers[i];
+    if(!s.alive) continue;
+
+    s.searchCd -= gameSpeed;
+    if(s.searchCd<=0 || !s.target || !s.target.alive){
+      const r=findNearest(s);
+      if(!r) continue;
+      s.target=r.enemy; s.cachedDist=r.dist;
+      s.searchCd = 10+Math.random()*8|0;
+    }
+
+    const en=s.target;
+    const dx=en.mesh.position.x - s.mesh.position.x;
+    const dz=en.mesh.position.z - s.mesh.position.z;
+    const dist=Math.sqrt(dx*dx+dz*dz);
+    s.cachedDist=dist;
+
+    s.mesh.rotation.y = Math.atan2(dx,dz);
+    s.mesh.position.y = Math.sin(frameCount*.09+s.bobOffset)*.025;
+
+    if(dist>FIRE_RANGE){
+      const inv=SOLDIER_SPD*gameSpeed/dist;
+      s.mesh.position.x+=dx*inv;
+      s.mesh.position.z+=dz*inv;
+    } else {
+      const sf=Math.sin(frameCount*.04+s.bobOffset)*SOLDIER_SPD*.35*gameSpeed;
+      s.mesh.position.x-=dz/dist*sf;
+      s.mesh.position.z+=dx/dist*sf;
+    }
+    s.mesh.position.x=Math.max(-38,Math.min(38,s.mesh.position.x));
+    s.mesh.position.z=Math.max(-28,Math.min(28,s.mesh.position.z));
+
+    if(s.fireCooldown<=0 && dist<=FIRE_RANGE){
+      fireBullet(s.mesh.position, en.mesh.position, s.team);
+      s.fireCooldown=FIRE_CD+Math.random()*24;
+    } else {
+      s.fireCooldown-=gameSpeed;
+    }
+  }
+}
+
+function updateBullets() {
+  const spd=BULLET_SPD*gameSpeed;
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    if(b.hit){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
+    b.mesh.position.x+=b.dir.x*spd;
+    b.mesh.position.y+=b.dir.y*spd;
+    b.mesh.position.z+=b.dir.z*spd;
+    b.life-=gameSpeed;
+    const pool=b.team==='blue'?poolRed:poolBlue;
+    const bx=b.mesh.position.x, bz=b.mesh.position.z;
+    for(let j=0;j<pool.length;j++){
+      const t=pool[j];
+      const dx=t.mesh.position.x-bx, dz=t.mesh.position.z-bz;
+      if(dx*dx+dz*dz<0.42){
+        b.hit=true;
+        t.hp--;
+        spawnParticles(t.mesh.position, b.team);
+        if(t.hp<=0) killSoldier(t, b.team);
+        break;
+      }
+    }
+    if(b.life<=0||b.hit){ scene.remove(b.mesh); bullets.splice(i,1); }
+  }
+}
+
+function updateParticles() {
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.mesh.position.add(p.vel);
+    p.vel.y-=.007;
+    p.life-=gameSpeed;
+    p.mesh.material.opacity=Math.max(0,p.life/30);
+    if(p.life<=0){ scene.remove(p.mesh); particles.splice(i,1); }
+  }
+}
+
+function killSoldier(s, killer) {
+  s.alive=false;
+  if(killer==='blue'){ blueKills++; document.getElementById('blue-kills').textContent=blueKills; }
+  else               { redKills++;  document.getElementById('red-kills').textContent=redKills;   }
+  s.mesh.rotation.z=Math.PI/2;
+  s.mesh.position.y=-0.18;
+  s.mesh.traverse(m=>{ if(m.isMesh) m.material=S.mDead; });
+  addLog(`${killer==='blue'?'ALPHA':'OMEGA'} eliminated a soldier`, killer);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HUD
+// ═══════════════════════════════════════════════════════════════════
+function updateHUD() {
+  let ab=poolBlue.length, ar=poolRed.length;
+  // Re-count from scratch (pools might be stale at start)
+  if (!running && soldiers.length) {
+    ab=0; ar=0;
+    for(let i=0;i<soldiers.length;i++){ const s=soldiers[i]; if(s.alive){if(s.team==='blue')ab++;else ar++;} }
+  }
+  document.getElementById('blue-alive').textContent=ab;
+  document.getElementById('red-alive').textContent=ar;
+  document.getElementById('blue-health').style.width=(ab/CFG.blueCount*100)+'%';
+  document.getElementById('red-health').style.width =(ar/CFG.redCount *100)+'%';
+  document.getElementById('stat-shots').textContent='SHOTS: '+totalShots;
+  if(startTime){
+    const e=Math.floor((Date.now()-startTime)/1000);
+    document.getElementById('stat-time').textContent=`TIME: ${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`;
+  }
+  if(running && (ab===0||ar===0)){
+    running=false;
+    const w=ab>0?'ALPHA BATTALION':ar>0?'OMEGA CORPS':'DRAW';
+    const c=ab>0?'#00aaff':ar>0?'#ff4422':'#ffcc00';
+    document.getElementById('victory-title').textContent=w+' WINS';
+    document.getElementById('victory-title').style.color=c;
+    document.getElementById('victory').classList.add('show');
+    document.getElementById('phase-display').textContent='BATTLE OVER';
+    document.getElementById('btn-start').textContent='▶ DEPLOY';
+    addLog(w+' wins the battle!','system');
+  }
+}
+
+function addLog(msg, type='system') {
+  const d=document.createElement('div');
+  d.className='log-entry '+type; d.textContent='> '+msg;
+  const el=document.getElementById('battle-log');
+  el.insertBefore(d,el.firstChild);
+  while(el.children.length>7) el.removeChild(el.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SPECTATOR CAMERA (Minecraft-style)
+// ═══════════════════════════════════════════════════════════════════
+let pointerLocked=false;
+let camYaw=-Math.PI*.5, camPitch=-0.45;
+let autoAngle=0;
+const KEYS={};
+const CAM_SPD=0.22;
+
+function updateCamera() {
+  if (pointerLocked) {
+    const spd = (KEYS.ShiftLeft||KEYS.ShiftRight) ? CAM_SPD*2.8 : CAM_SPD;
+
+    // Forward vector (ignore pitch for horizontal, include for vertical fly)
+    const sinY=Math.sin(camYaw), cosY=Math.cos(camYaw);
+    const cosP=Math.cos(camPitch), sinP=Math.sin(camPitch);
+    const fwdH = new THREE.Vector3(-sinY, 0, -cosY); // horizontal fwd
+    const fwdF = new THREE.Vector3(-sinY*cosP, sinP, -cosY*cosP); // full look fwd
+    const right = new THREE.Vector3(cosY, 0, -sinY);
+    const up    = new THREE.Vector3(0,1,0);
+
+    if(KEYS.KeyW||KEYS.ArrowUp)    camera.position.addScaledVector(fwdF, spd);
+    if(KEYS.KeyS||KEYS.ArrowDown)  camera.position.addScaledVector(fwdF,-spd);
+    if(KEYS.KeyA||KEYS.ArrowLeft)  camera.position.addScaledVector(right,-spd);
+    if(KEYS.KeyD||KEYS.ArrowRight) camera.position.addScaledVector(right, spd);
+    if(KEYS.KeyE||KEYS.Space)      camera.position.addScaledVector(up, spd);
+    if(KEYS.KeyQ)                  camera.position.addScaledVector(up,-spd);
+
+    camera.rotation.order='YXZ';
+    camera.rotation.y=camYaw;
+    camera.rotation.x=camPitch;
+  } else {
+    // Smooth auto-orbit
+    autoAngle += 0.0005*gameSpeed;
+    camera.position.x = Math.sin(autoAngle)*10;
+    camera.position.z = 34+Math.cos(autoAngle*.5)*4;
+    camera.position.y = 23+Math.sin(autoAngle*.7)*2;
+    camera.lookAt(0,2,0);
+  }
+}
+
+const cnv = document.getElementById('gameCanvas');
+cnv.addEventListener('click', ()=>{
+  if (!document.getElementById('settings-panel').classList.contains('open'))
+    cnv.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', ()=>{
+  pointerLocked = document.pointerLockElement===cnv;
+  document.getElementById('crosshair').classList.toggle('show', pointerLocked);
+  const hint = document.getElementById('cam-hint');
+  hint.style.opacity = pointerLocked ? '0' : '1';
+  if (!pointerLocked) autoAngle=Math.atan2(camera.position.x, camera.position.z);
+});
+document.addEventListener('mousemove', e=>{
+  if(!pointerLocked) return;
+  camYaw   -= e.movementX*0.0022;
+  camPitch -= e.movementY*0.0022;
+  camPitch  = Math.max(-Math.PI/2+.04, Math.min(Math.PI/2-.04, camPitch));
+});
+document.addEventListener('keydown', e=>{
+  KEYS[e.code]=true;
+  if(e.code==='Escape'&&pointerLocked) document.exitPointerLock();
+});
+document.addEventListener('keyup', e=>{ KEYS[e.code]=false; });
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════════════
+function loop() {
+  requestAnimationFrame(loop);
+
+  if(running){
+    frameCount+=gameSpeed;
+    updateSoldiers();
+    updateBullets();
+    updateParticles();
+    if(frameCount%4===0) updateHUD();
+  }
+
+  updateCamera();
+  renderer.render(scene, camera);
+
+  // FPS counter
+  fpsCount++;
+  const now=performance.now();
+  if(now-fpsLast>=1000){
+    document.getElementById('stat-fps').textContent='FPS: '+fpsCount;
+    fpsCount=0; fpsLast=now;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('btn-start').addEventListener('click', ()=>{
+  if(!running){
+    document.getElementById('victory').classList.remove('show');
+    if(!soldiers.length) spawnArmies();
+    running=true; startTime=Date.now();
+    document.getElementById('phase-display').textContent='BATTLE IN PROGRESS';
+    document.getElementById('btn-start').textContent='⏸ PAUSE';
+    addLog('Battle commences! Armies advance.','system');
+  } else {
+    running=false;
+    document.getElementById('phase-display').textContent='PAUSED';
+    document.getElementById('btn-start').textContent='▶ RESUME';
+  }
+});
+
+function resetGame() {
+  running=false;
+  document.getElementById('victory').classList.remove('show');
+  soldiers.forEach(s=>scene.remove(s.mesh));
+  bullets.forEach(b=>scene.remove(b.mesh));
+  particles.forEach(p=>scene.remove(p.mesh));
+  soldiers=[]; bullets=[]; particles=[];
+  blueKills=0; redKills=0; totalShots=0; frameCount=0; startTime=null;
+  poolBlue=[]; poolRed=[];
+  ['blue-kills','red-kills','blue-alive','red-alive'].forEach(id=>document.getElementById(id).textContent=0);
+  document.getElementById('blue-health').style.width='100%';
+  document.getElementById('red-health').style.width='100%';
+  document.getElementById('stat-time').textContent='TIME: 00:00';
+  document.getElementById('stat-shots').textContent='SHOTS: 0';
+  document.getElementById('phase-display').textContent='STANDBY';
+  document.getElementById('btn-start').textContent='▶ DEPLOY';
+  document.getElementById('battle-log').innerHTML='';
+}
+document.getElementById('btn-reset').addEventListener('click', resetGame);
+document.getElementById('btn-again').addEventListener('click', resetGame);
+
+const SPEEDS=[1,2,4,.5]; let sIdx=0;
+document.getElementById('btn-speed').addEventListener('click', ()=>{
+  sIdx=(sIdx+1)%SPEEDS.length;
+  gameSpeed=SPEEDS[sIdx];
+  document.getElementById('btn-speed').textContent='SPEED: '+gameSpeed+'×';
+});
+
+// ── Settings panel ──
+document.getElementById('btn-settings').addEventListener('click', ()=>{
+  document.getElementById('settings-panel').classList.toggle('open');
+  if(pointerLocked) document.exitPointerLock();
+});
+document.getElementById('btn-close-settings').addEventListener('click', ()=>{
+  document.getElementById('settings-panel').classList.remove('open');
+});
+
+['blue-count','red-count','soldier-hp'].forEach(id=>{
+  const el=document.getElementById(id);
+  const vl=document.getElementById(id+'-val');
+  el.addEventListener('input',()=>vl.textContent=el.value);
+});
+
+document.getElementById('btn-apply').addEventListener('click', ()=>{
+  CFG.blueCount = +document.getElementById('blue-count').value;
+  CFG.redCount  = +document.getElementById('red-count').value;
+  CFG.soldierHp = +document.getElementById('soldier-hp').value;
+  document.getElementById('settings-panel').classList.remove('open');
+  resetGame();
+  addLog(`Alpha: ${CFG.blueCount} troops | Omega: ${CFG.redCount} troops | HP: ${CFG.soldierHp}`,'system');
+});
+
+// ── Face image upload ──
+function setupFaceInput(inputId, previewId, team) {
+  document.getElementById(inputId).addEventListener('change', e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const url=URL.createObjectURL(file);
+    const prev=document.getElementById(previewId);
+    // Replace content but keep file input
+    prev.innerHTML=`<img src="${url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"><input type="file" accept="image/*" id="${inputId}" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">`;
+    setupFaceInput(inputId, previewId, team);
+    new THREE.TextureLoader().load(url, tex=>{
+      if(team==='blue') blueFaceTex=tex; else redFaceTex=tex;
+      // Invalidate team material so next spawn picks up texture
+      delete S['m_'+team];
+      addLog(`${team==='blue'?'Alpha':'Omega'} face image loaded!`, team);
+    });
+  });
+}
+setupFaceInput('blue-face-input','blue-face-preview','blue');
+setupFaceInput('red-face-input','red-face-preview','red');
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
+init();
+loop();
+addLog('Systems online. Click DEPLOY to begin.','system');
+addLog('Click canvas to enter spectator mode (WASD+mouse).','system');
+</script>
+</body>
+</html>
