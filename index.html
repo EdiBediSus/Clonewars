@@ -5,314 +5,415 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CLONE WAR — Battle Simulation</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
-  * { margin:0;padding:0;box-sizing:border-box; }
-  body { background:#000;color:#e0e0e0;font-family:'Share Tech Mono',monospace;overflow:hidden;height:100vh;user-select:none; }
-  canvas { display:block; }
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
-  #hud { position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:10; }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#87ceeb;color:#1a1a2e;font-family:'Share Tech Mono',monospace;overflow:hidden;height:100vh;user-select:none;}
+canvas{display:block;}
 
-  #title-bar {
-    position:absolute;top:0;left:0;right:0;padding:12px 20px;
-    background:linear-gradient(180deg,rgba(0,0,0,0.9) 0%,transparent 100%);
-    display:flex;align-items:center;justify-content:space-between;
-  }
-  .army-hud { display:flex;flex-direction:column;gap:4px;min-width:200px; }
-  .army-name { font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px; }
-  .army-hud.left .army-name { color:#00aaff; }
-  .army-hud.right .army-name { color:#ff4422;text-align:right; }
-  .stat-row { display:flex;gap:10px;font-size:9px;color:#aaa; }
-  .army-hud.right .stat-row { justify-content:flex-end; }
-  .stat-val { color:#fff; }
-  .health-bar-wrap { width:200px;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden; }
-  .army-hud.right .health-bar-wrap { margin-left:auto; }
-  .health-bar { height:100%;border-radius:3px;transition:width 0.4s; }
-  .army-hud.left  .health-bar { background:linear-gradient(90deg,#0055cc,#00ccff); }
-  .army-hud.right .health-bar { background:linear-gradient(90deg,#cc3300,#ff6600);float:right; }
-  #center-hud { text-align:center; }
-  #game-title { font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;letter-spacing:6px;color:#fff;text-shadow:0 0 20px rgba(255,200,0,0.5); }
-  #phase-display { font-size:9px;letter-spacing:4px;color:#ff0;margin-top:2px; }
+/* ── HUD ── */
+#hud{position:absolute;inset:0;pointer-events:none;z-index:10;}
 
-  #battle-log { position:absolute;bottom:72px;left:16px;width:260px;max-height:100px;overflow:hidden;pointer-events:none; }
-  .log-entry { font-size:9px;color:#aaa;line-height:1.7; }
-  .log-entry.blue { color:#44aaff; }
-  .log-entry.red  { color:#ff6644; }
-  .log-entry.system { color:#ffcc00; }
+/* top bar */
+#title-bar{
+  position:absolute;top:0;left:0;right:0;
+  padding:14px 22px 18px;
+  background:linear-gradient(180deg,rgba(10,12,30,0.82) 0%,rgba(10,12,30,0.0) 100%);
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.army-panel{display:flex;flex-direction:column;gap:6px;min-width:220px;}
+.army-name{font-family:'Orbitron',sans-serif;font-size:11px;font-weight:900;letter-spacing:3px;display:flex;align-items:center;gap:8px;}
+.army-panel.left .army-name{color:#4dc3ff;}
+.army-panel.right .army-name{color:#ff6644;justify-content:flex-end;}
+.army-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.army-panel.left  .army-dot{background:#4dc3ff;box-shadow:0 0 8px #4dc3ff;}
+.army-panel.right .army-dot{background:#ff6644;box-shadow:0 0 8px #ff6644;}
+.stat-row{display:flex;gap:14px;font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:1px;}
+.army-panel.right .stat-row{justify-content:flex-end;}
+.sv{color:rgba(255,255,255,0.9);font-size:10px;}
+.hbar-wrap{height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;position:relative;}
+.army-panel.left  .hbar-wrap{width:220px;}
+.army-panel.right .hbar-wrap{width:220px;margin-left:auto;}
+.hbar{height:100%;border-radius:2px;transition:width 0.5s ease;}
+.army-panel.left  .hbar{background:linear-gradient(90deg,#1a88ff,#44ddff);}
+.army-panel.right .hbar{background:linear-gradient(90deg,#ff3300,#ff8844);float:right;}
 
-  #mini-stats { position:absolute;bottom:72px;right:16px;text-align:right;font-size:9px;color:#555;line-height:2; }
+/* kill badges */
+.kill-badge{font-size:10px;font-weight:700;padding:1px 8px;border-radius:1px;letter-spacing:1px;}
+.army-panel.left  .kill-badge{background:rgba(77,195,255,0.15);color:#4dc3ff;border-left:2px solid #4dc3ff;}
+.army-panel.right .kill-badge{background:rgba(255,102,68,0.15);color:#ff6644;border-right:2px solid #ff6644;text-align:right;}
 
-  #cam-hint {
-    position:absolute;top:56px;left:50%;transform:translateX(-50%);
-    font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.35);
-    background:rgba(0,0,0,0.55);padding:4px 12px;border-radius:2px;pointer-events:none;
-    transition:opacity 0.4s;
-  }
+/* center */
+#center-hud{text-align:center;padding-top:2px;}
+#game-title{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;letter-spacing:8px;color:#fff;text-shadow:0 2px 20px rgba(0,0,0,0.5);}
+#phase-tag{
+  display:inline-block;margin-top:5px;padding:2px 12px;
+  font-size:8px;letter-spacing:4px;text-transform:uppercase;
+  border-radius:1px;font-family:'Orbitron',sans-serif;
+  background:rgba(255,200,0,0.15);color:#ffd700;border:1px solid rgba(255,200,0,0.3);
+}
 
-  /* Controls */
-  #controls {
-    position:absolute;bottom:0;left:0;right:0;padding:12px 20px;
-    background:linear-gradient(0deg,rgba(0,0,0,0.92) 0%,transparent 100%);
-    display:flex;justify-content:center;gap:10px;pointer-events:all;
-  }
-  button {
-    font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;
-    letter-spacing:2px;padding:8px 18px;border:none;cursor:pointer;
-    text-transform:uppercase;transition:all 0.2s;
-  }
-  #btn-start { background:linear-gradient(135deg,#004488,#0088dd);color:#fff;box-shadow:0 0 16px rgba(0,140,255,0.35); }
-  #btn-start:hover { box-shadow:0 0 28px rgba(0,140,255,0.6);transform:translateY(-1px); }
-  #btn-reset  { background:rgba(255,255,255,0.07);color:#aaa;border:1px solid rgba(255,255,255,0.13); }
-  #btn-reset:hover { background:rgba(255,255,255,0.14);color:#fff; }
-  #btn-speed  { background:rgba(255,200,0,0.09);color:#ffcc00;border:1px solid rgba(255,200,0,0.28); }
-  #btn-speed:hover { background:rgba(255,200,0,0.18); }
-  #btn-settings { background:rgba(200,180,255,0.07);color:#ccaaff;border:1px solid rgba(200,180,255,0.18); }
-  #btn-settings:hover { background:rgba(200,180,255,0.14);color:#fff; }
+/* bottom-left log */
+#battle-log{position:absolute;bottom:76px;left:18px;width:280px;pointer-events:none;}
+.log-entry{
+  font-size:9px;line-height:1.9;color:rgba(255,255,255,0.45);
+  display:flex;align-items:center;gap:6px;
+}
+.log-entry::before{content:'›';font-size:11px;}
+.log-entry.blue{color:#4dc3ff;}
+.log-entry.red{color:#ff7755;}
+.log-entry.system{color:#ffd700;}
+.log-entry.good{color:#44ee88;}
 
-  /* Settings Panel */
-  #settings-panel {
-    display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    background:rgba(4,7,12,0.97);border:1px solid rgba(255,255,255,0.1);
-    padding:28px 30px;width:420px;z-index:50;pointer-events:all;
-    box-shadow:0 0 60px rgba(0,80,200,0.18);
-  }
-  #settings-panel.open { display:block; }
-  #settings-panel h2 { font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:4px;color:#fff;margin-bottom:20px; }
-  .setting-group { margin-bottom:18px; }
-  .setting-group > label { font-size:9px;letter-spacing:2px;color:#888;display:block;margin-bottom:7px;text-transform:uppercase; }
-  .setting-row { display:flex;align-items:center;gap:12px; }
-  .setting-row input[type=range] { flex:1;accent-color:#0088ff; }
-  .setting-row span { font-size:11px;color:#fff;min-width:28px;text-align:right; }
-  hr.sep { border:none;border-top:1px solid rgba(255,255,255,0.07);margin:16px 0; }
+/* bottom-right stats */
+#mini-stats{position:absolute;bottom:76px;right:18px;text-align:right;font-size:9px;color:rgba(255,255,255,0.35);line-height:2.1;letter-spacing:1px;}
+#stat-fps{color:rgba(255,255,255,0.5);}
 
-  /* Face slots */
-  .face-grid { display:flex;gap:18px;margin-top:8px; }
-  .face-slot { display:flex;flex-direction:column;align-items:center;gap:6px; }
-  .face-preview {
-    width:56px;height:56px;border:1px solid rgba(255,255,255,0.15);
-    background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden;
-    display:flex;align-items:center;justify-content:center;
-    font-size:7px;color:#444;letter-spacing:1px;cursor:pointer;position:relative;text-align:center;
-  }
-  .face-preview img { width:100%;height:100%;object-fit:cover;position:absolute;inset:0; }
-  .face-preview input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
-  .face-lbl { font-size:8px;letter-spacing:2px; }
-  .face-lbl.blue { color:#44aaff; }
-  .face-lbl.red  { color:#ff6644; }
+/* cam hint */
+#cam-hint{
+  position:absolute;top:64px;left:50%;transform:translateX(-50%);
+  font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.4);
+  background:rgba(0,0,0,0.4);padding:4px 14px;border-radius:20px;
+  pointer-events:none;transition:opacity 0.5s;white-space:nowrap;
+}
 
-  /* dev note */
-  .dev-note { font-size:8px;color:#555;line-height:1.6;margin-top:6px; }
-  .dev-note code { color:#888;background:rgba(255,255,255,0.05);padding:1px 4px; }
+/* ── CONTROLS BAR ── */
+#controls{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:14px 22px;
+  background:linear-gradient(0deg,rgba(10,12,30,0.88) 0%,rgba(10,12,30,0) 100%);
+  display:flex;justify-content:center;align-items:center;gap:10px;
+  pointer-events:all;
+}
+.ctrl-btn{
+  font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:2px;padding:9px 20px;border:none;cursor:pointer;
+  text-transform:uppercase;transition:all 0.18s;border-radius:2px;
+  position:relative;overflow:hidden;
+}
+.ctrl-btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background 0.18s;}
+.ctrl-btn:hover::after{background:rgba(255,255,255,0.08);}
 
-  .panel-btns { display:flex;gap:10px;margin-top:20px; }
-  .btn-apply { background:linear-gradient(135deg,#004488,#0088dd);color:#fff;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;padding:8px 22px;border:none;cursor:pointer; }
-  .btn-close { background:rgba(255,255,255,0.07);color:#aaa;border:1px solid rgba(255,255,255,0.13);font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;padding:8px 22px;cursor:pointer; }
+#btn-start{background:linear-gradient(135deg,#1155aa,#2288ee);color:#fff;box-shadow:0 2px 20px rgba(30,120,255,0.35);}
+#btn-start:hover{box-shadow:0 4px 30px rgba(30,120,255,0.55);transform:translateY(-1px);}
+#btn-reset{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.15);}
+#btn-speed{background:rgba(255,210,0,0.1);color:#ffd700;border:1px solid rgba(255,210,0,0.3);}
+#btn-editor{background:rgba(180,150,255,0.1);color:#cc99ff;border:1px solid rgba(180,150,255,0.25);}
 
-  /* Victory */
-  #victory { display:none;position:absolute;inset:0;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;flex-direction:column;gap:14px;pointer-events:all; }
-  #victory.show { display:flex; }
-  #victory-title { font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;letter-spacing:8px; }
-  #victory-sub { font-size:11px;letter-spacing:4px;color:#aaa; }
-  .btn-again { background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.28);font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;padding:10px 26px;cursor:pointer;text-transform:uppercase; }
+/* divider in controls */
+.ctrl-sep{width:1px;height:28px;background:rgba(255,255,255,0.1);margin:0 4px;}
 
-  /* Crosshair */
-  #crosshair { display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20;width:2px;height:2px; }
-  #crosshair.show { display:block; }
-  #crosshair::before,#crosshair::after { content:'';position:absolute;background:rgba(255,255,255,0.55); }
-  #crosshair::before { width:14px;height:1px;top:0;left:-7px; }
-  #crosshair::after  { width:1px;height:14px;top:-7px;left:0; }
+/* ── ARMY EDITOR PANEL ── */
+#editor-panel{
+  display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(8,10,20,0.97);
+  border:1px solid rgba(255,255,255,0.1);
+  border-top:2px solid rgba(77,195,255,0.5);
+  padding:28px 32px;width:440px;z-index:50;pointer-events:all;
+  box-shadow:0 8px 60px rgba(0,50,200,0.25),0 0 0 1px rgba(255,255,255,0.04);
+}
+#editor-panel.open{display:block;}
+.panel-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:5px;color:#fff;margin-bottom:24px;display:flex;align-items:center;gap:10px;}
+.panel-title::before{content:'';flex:1;height:1px;background:rgba(255,255,255,0.08);}
+.panel-title::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.08);}
+
+.sgrp{margin-bottom:18px;}
+.sgrp > label{font-size:8px;letter-spacing:3px;color:rgba(255,255,255,0.4);display:block;margin-bottom:8px;text-transform:uppercase;}
+.srow{display:flex;align-items:center;gap:14px;}
+.srow input[type=range]{flex:1;-webkit-appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,0.15);outline:none;}
+.srow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#2288ee;cursor:pointer;box-shadow:0 0 8px rgba(34,136,238,0.6);}
+.srow span{font-size:12px;color:#fff;min-width:32px;text-align:right;font-family:'Orbitron',sans-serif;}
+
+.panel-sep{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:20px 0;}
+
+/* face upload */
+.face-section-title{font-size:8px;letter-spacing:3px;color:rgba(255,255,255,0.4);margin-bottom:12px;text-transform:uppercase;}
+.face-row{display:flex;gap:20px;}
+.face-slot{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.face-thumb{
+  width:64px;height:64px;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.04);
+  border-radius:3px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7px;color:rgba(255,255,255,0.25);
+  letter-spacing:1px;cursor:pointer;position:relative;text-align:center;line-height:1.5;
+  transition:border-color 0.2s;
+}
+.face-thumb:hover{border-color:rgba(255,255,255,0.3);}
+.face-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.face-thumb input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.face-tag{font-size:8px;letter-spacing:2px;font-family:'Orbitron',sans-serif;}
+.face-tag.blue{color:#4dc3ff;}
+.face-tag.red{color:#ff6644;}
+.face-hint{font-size:8px;color:rgba(255,255,255,0.25);line-height:1.7;margin-top:10px;}
+.face-hint code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:2px;color:rgba(255,255,255,0.45);}
+
+.panel-actions{display:flex;gap:10px;margin-top:24px;}
+.pact-apply{
+  background:linear-gradient(135deg,#1155aa,#2288ee);color:#fff;
+  font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;
+  padding:9px 22px;border:none;cursor:pointer;border-radius:2px;
+  box-shadow:0 2px 16px rgba(30,120,255,0.3);transition:all 0.18s;
+}
+.pact-apply:hover{box-shadow:0 4px 24px rgba(30,120,255,0.5);}
+.pact-close{
+  background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.5);
+  border:1px solid rgba(255,255,255,0.12);
+  font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;
+  padding:9px 22px;cursor:pointer;border-radius:2px;transition:all 0.18s;
+}
+.pact-close:hover{background:rgba(255,255,255,0.12);color:#fff;}
+
+/* ── VICTORY SCREEN ── */
+#victory{
+  display:none;position:absolute;inset:0;
+  background:rgba(5,8,20,0.82);
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;
+  pointer-events:all;backdrop-filter:blur(4px);
+}
+#victory.show{display:flex;}
+.v-winner{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:6px;color:rgba(255,255,255,0.5);margin-bottom:-8px;}
+#victory-title{font-family:'Orbitron',sans-serif;font-size:42px;font-weight:900;letter-spacing:6px;}
+.v-sub{font-size:10px;letter-spacing:5px;color:rgba(255,255,255,0.35);}
+.v-stats{display:flex;gap:32px;margin-top:8px;}
+.v-stat{text-align:center;font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:2px;}
+.v-stat strong{display:block;font-size:18px;color:#fff;font-family:'Orbitron',sans-serif;margin-bottom:2px;}
+#btn-again{
+  background:rgba(255,255,255,0.1);color:#fff;
+  border:1px solid rgba(255,255,255,0.25);
+  font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:3px;
+  padding:11px 28px;cursor:pointer;text-transform:uppercase;border-radius:2px;
+  transition:all 0.2s;margin-top:6px;
+}
+#btn-again:hover{background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.4);}
+
+/* ── CROSSHAIR ── */
+#xhair{
+  display:none;position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);pointer-events:none;z-index:20;
+}
+#xhair.show{display:block;}
+#xhair::before,#xhair::after{content:'';position:absolute;background:rgba(255,255,255,0.7);}
+#xhair::before{width:16px;height:1px;top:0;left:-8px;}
+#xhair::after{width:1px;height:16px;top:-8px;left:0;}
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 
+<!-- HUD -->
 <div id="hud">
   <div id="title-bar">
-    <div class="army-hud left">
-      <div class="army-name">⬡ ALPHA BATTALION</div>
+    <!-- LEFT ARMY -->
+    <div class="army-panel left">
+      <div class="army-name"><span class="army-dot"></span>ALPHA BATTALION</div>
       <div class="stat-row">
-        <span class="stat">ALIVE: <span class="stat-val" id="blue-alive">0</span></span>
-        <span class="stat">KILLS: <span class="stat-val" id="blue-kills">0</span></span>
+        <span>ALIVE <span class="sv" id="blue-alive">0</span></span>
+        <span>KILLS <span class="sv" id="blue-kills">0</span></span>
       </div>
-      <div class="health-bar-wrap"><div class="health-bar" id="blue-health" style="width:100%"></div></div>
+      <div class="hbar-wrap"><div class="hbar" id="blue-health" style="width:100%"></div></div>
     </div>
+
+    <!-- CENTER -->
     <div id="center-hud">
       <div id="game-title">CLONE WAR</div>
-      <div id="phase-display">STANDBY</div>
+      <div id="phase-tag">STANDBY</div>
     </div>
-    <div class="army-hud right">
-      <div class="army-name">OMEGA CORPS ⬡</div>
+
+    <!-- RIGHT ARMY -->
+    <div class="army-panel right">
+      <div class="army-name">OMEGA CORPS<span class="army-dot"></span></div>
       <div class="stat-row">
-        <span class="stat">KILLS: <span class="stat-val" id="red-kills">0</span></span>
-        <span class="stat">ALIVE: <span class="stat-val" id="red-alive">0</span></span>
+        <span>KILLS <span class="sv" id="red-kills">0</span></span>
+        <span>ALIVE <span class="sv" id="red-alive">0</span></span>
       </div>
-      <div class="health-bar-wrap"><div class="health-bar" id="red-health" style="width:100%"></div></div>
+      <div class="hbar-wrap"><div class="hbar" id="red-health" style="width:100%"></div></div>
     </div>
   </div>
 
-  <div id="cam-hint">CLICK CANVAS → WASD/QE MOVE · MOUSE LOOK · SHIFT SPRINT · ESC RELEASE</div>
+  <div id="cam-hint">🎮 CLICK TO ENTER SPECTATOR · WASD MOVE · QE UP/DOWN · SHIFT SPRINT · ESC EXIT</div>
   <div id="battle-log"></div>
   <div id="mini-stats">
-    <div id="stat-time">TIME: 00:00</div>
-    <div id="stat-shots">SHOTS: 0</div>
-    <div id="stat-fps">FPS: —</div>
+    <div id="stat-time">00:00</div>
+    <div id="stat-shots">0 SHOTS</div>
+    <div id="stat-fps">— FPS</div>
   </div>
 </div>
 
-<div id="crosshair"></div>
+<div id="xhair"></div>
 
-<!-- Settings Panel -->
-<div id="settings-panel">
-  <h2>⚙ ARMY EDITOR</h2>
+<!-- Army Editor -->
+<div id="editor-panel">
+  <div class="panel-title">ARMY EDITOR</div>
 
-  <div class="setting-group">
-    <label>Alpha Battalion — Troop Count</label>
-    <div class="setting-row">
+  <div class="sgrp">
+    <label>⬡ Alpha Battalion — Troops</label>
+    <div class="srow">
       <input type="range" id="blue-count" min="5" max="150" value="40" step="5">
       <span id="blue-count-val">40</span>
     </div>
   </div>
 
-  <div class="setting-group">
-    <label>Omega Corps — Troop Count</label>
-    <div class="setting-row">
+  <div class="sgrp">
+    <label>⬡ Omega Corps — Troops</label>
+    <div class="srow">
       <input type="range" id="red-count" min="5" max="150" value="40" step="5">
       <span id="red-count-val">40</span>
     </div>
   </div>
 
-  <div class="setting-group">
+  <div class="sgrp">
     <label>HP per Soldier</label>
-    <div class="setting-row">
+    <div class="srow">
       <input type="range" id="soldier-hp" min="1" max="12" value="3" step="1">
       <span id="soldier-hp-val">3</span>
     </div>
   </div>
 
-  <hr class="sep">
+  <hr class="panel-sep">
 
-  <div class="setting-group">
-    <label>Soldier Face Images</label>
-    <div class="face-grid">
-      <div class="face-slot">
-        <div class="face-preview" id="blue-face-preview">
-          <span>CLICK<br>TO UPLOAD</span>
-          <input type="file" accept="image/*" id="blue-face-input">
-        </div>
-        <div class="face-lbl blue">ALPHA</div>
+  <div class="face-section-title">Soldier Face Images</div>
+  <div class="face-row">
+    <div class="face-slot">
+      <div class="face-thumb" id="fp-blue">
+        <span>CLICK<br>TO UPLOAD</span>
+        <input type="file" accept="image/*" id="fi-blue">
       </div>
-      <div class="face-slot">
-        <div class="face-preview" id="red-face-preview">
-          <span>CLICK<br>TO UPLOAD</span>
-          <input type="file" accept="image/*" id="red-face-input">
-        </div>
-        <div class="face-lbl red">OMEGA</div>
-      </div>
+      <div class="face-tag blue">ALPHA</div>
     </div>
-    <div class="dev-note">
-      DEV TIP: Set <code>DEV_CONFIG.blueFaceImageUrl</code> or <code>redFaceImageUrl</code> in the JS to auto-load an <code>image.png</code> from the same folder without clicking.
+    <div class="face-slot">
+      <div class="face-thumb" id="fp-red">
+        <span>CLICK<br>TO UPLOAD</span>
+        <input type="file" accept="image/*" id="fi-red">
+      </div>
+      <div class="face-tag red">OMEGA</div>
+    </div>
+    <div style="flex:1;display:flex;align-items:flex-start;padding-top:4px;">
+      <div class="face-hint">
+        Upload any image — it will appear on each soldier's helmet.<br><br>
+        <strong>Dev shortcut:</strong> set<br>
+        <code>DEV_CONFIG.blueFaceUrl</code><br>
+        in the JS to auto-load <code>image.png</code>.
+      </div>
     </div>
   </div>
 
-  <div class="panel-btns">
-    <button class="btn-apply" id="btn-apply">✓ APPLY &amp; REDEPLOY</button>
-    <button class="btn-close" id="btn-close-settings">CLOSE</button>
+  <div class="panel-actions">
+    <button class="pact-apply" id="btn-apply">✓ APPLY &amp; REDEPLOY</button>
+    <button class="pact-close" id="btn-close-editor">CLOSE</button>
   </div>
 </div>
 
+<!-- Controls -->
 <div id="controls">
-  <button id="btn-reset">↺ RESET</button>
-  <button id="btn-start">▶ DEPLOY</button>
-  <button id="btn-speed">SPEED: 1×</button>
-  <button id="btn-settings">⚙ ARMY EDITOR</button>
+  <button class="ctrl-btn" id="btn-reset">↺ RESET</button>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn" id="btn-start">▶ DEPLOY ARMIES</button>
+  <div class="ctrl-sep"></div>
+  <button class="ctrl-btn" id="btn-speed">SPEED ×1</button>
+  <button class="ctrl-btn" id="btn-editor">⚙ ARMY EDITOR</button>
 </div>
 
+<!-- Victory -->
 <div id="victory">
+  <div class="v-winner">VICTORY</div>
   <div id="victory-title"></div>
-  <div id="victory-sub">BATTLE CONCLUDED</div>
-  <button class="btn-again" id="btn-again">FIGHT AGAIN</button>
+  <div class="v-sub">BATTLE CONCLUDED</div>
+  <div class="v-stats">
+    <div class="v-stat"><strong id="v-blue-kills">0</strong>ALPHA KILLS</div>
+    <div class="v-stat"><strong id="v-time">0:00</strong>DURATION</div>
+    <div class="v-stat"><strong id="v-shots">0</strong>SHOTS FIRED</div>
+    <div class="v-stat"><strong id="v-red-kills">0</strong>OMEGA KILLS</div>
+  </div>
+  <button id="btn-again">FIGHT AGAIN</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ═══════════════════════════════════════════════════════════════════
-// DEVELOPER CONFIG
-// ═══════════════════════════════════════════════════════════════════
-// To auto-load face images without the file picker:
-//   1. Put your image file in the same folder as this HTML
-//   2. Set the filename below, e.g. 'my_face.png'
+// ═══════════════════════════════════════════
+// DEVELOPER CONFIG — set URLs to auto-load face images
+// e.g. blueFaceUrl: 'my_face.png'  (same folder as HTML)
+// ═══════════════════════════════════════════
 const DEV_CONFIG = {
-  blueFaceImageUrl: null,   // e.g. 'blue_face.png'
-  redFaceImageUrl:  null,   // e.g. 'red_face.png'
+  blueFaceUrl: null,
+  redFaceUrl:  null,
 };
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════════════════
-let CFG = { blueCount:40, redCount:40, soldierHp:3 };
-
+// ═══════════════════════════════════════════
+let CFG = { blueCount:40, redCount:40, hp:3 };
 let scene, camera, renderer;
 let soldiers=[], bullets=[], particles=[];
 let running=false, gameSpeed=1;
 let blueKills=0, redKills=0, totalShots=0;
 let startTime=null, frameCount=0;
 let fpsLast=performance.now(), fpsCount=0;
-
 let blueFaceTex=null, redFaceTex=null;
+let poolBlue=[], poolRed=[];
 
-// Shared assets
-const S = {}; // shared geometries & materials
+const S = {}; // shared geos & mats
+const FIRE_RANGE=10, FIRE_CD=72, SPD=0.02, BSPD=0.30;
+const MAX_B=140, MAX_P=50;
 
-const FIRE_RANGE=10, FIRE_CD=72, SOLDIER_SPD=0.02, BULLET_SPD=0.30;
-const MAX_BULLETS=140, MAX_PARTICLES=55;
-
-// ═══════════════════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// INIT THREE.JS
+// ═══════════════════════════════════════════
 function init() {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x03050a);
-  scene.fog = new THREE.FogExp2(0x03050a, 0.014);
 
-  camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 200);
-  camera.position.set(0, 24, 36);
-  camera.lookAt(0, 0, 0);
+  // ── DAYTIME SKY ──
+  // Gradient sky via a large sphere with vertex colors
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0xc8e8f5, 55, 120);
 
-  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: false });
+  camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 250);
+  camera.position.set(0, 24, 38);
+  camera.lookAt(0,0,0);
+
+  renderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('gameCanvas'),
+    antialias: true,
+  });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(innerWidth, innerHeight);
-  renderer.shadowMap.enabled = false;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
 
-  // Shared geos
-  S.gBody   = new THREE.BoxGeometry(0.36, 0.48, 0.21);
-  S.gHead   = new THREE.BoxGeometry(0.30, 0.27, 0.25);
-  S.gFace   = new THREE.PlaneGeometry(0.22, 0.18);
-  S.gVisor  = new THREE.BoxGeometry(0.22, 0.07, 0.03);
-  S.gLeg    = new THREE.BoxGeometry(0.13, 0.34, 0.13);
-  S.gArm    = new THREE.BoxGeometry(0.10, 0.32, 0.10);
-  S.gGun    = new THREE.BoxGeometry(0.05, 0.05, 0.34);
-  S.gStripe = new THREE.BoxGeometry(0.37, 0.05, 0.22);
-  S.gBullet = new THREE.BoxGeometry(0.07, 0.07, 0.22);
-  S.gPart   = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+  // ── DAYTIME LIGHTING ──
+  // Bright sun from upper-right
+  const sun = new THREE.DirectionalLight(0xfff5e0, 2.8);
+  sun.position.set(30, 50, 20);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width  = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.left   = -50;
+  sun.shadow.camera.right  =  50;
+  sun.shadow.camera.top    =  50;
+  sun.shadow.camera.bottom = -50;
+  sun.shadow.camera.far    = 150;
+  sun.shadow.bias = -0.001;
+  scene.add(sun);
 
-  // Permanent shared materials
-  S.mGun    = new THREE.MeshLambertMaterial({ color:0x181818 });
-  S.mDead   = new THREE.MeshLambertMaterial({ color:0x151515 });
-  S.mBulletB= new THREE.MeshBasicMaterial({ color:0x00ddff });
-  S.mBulletR= new THREE.MeshBasicMaterial({ color:0xff4400 });
-  S.mPartB  = new THREE.MeshBasicMaterial({ color:0x0055ff, transparent:true });
-  S.mPartR  = new THREE.MeshBasicMaterial({ color:0xff2200, transparent:true });
+  // Sky ambient — bright blue-white fill
+  scene.add(new THREE.AmbientLight(0xb0d8ff, 1.4));
 
-  // Lights
-  scene.add(new THREE.AmbientLight(0x1a2233, 1.3));
-  const dir = new THREE.DirectionalLight(0xfff0dd, 1.0);
-  dir.position.set(12, 22, 8);
-  scene.add(dir);
-  scene.add(new THREE.HemisphereLight(0x0a1830, 0x0d1a06, 0.7));
+  // Hemisphere sky/ground
+  scene.add(new THREE.HemisphereLight(0x87ceeb, 0x5a8a3a, 0.9));
 
+  // Soft fill from opposite side
+  const fill = new THREE.DirectionalLight(0xd0eeff, 0.6);
+  fill.position.set(-20, 10, -10);
+  scene.add(fill);
+
+  buildSharedGeos();
   buildScene();
 
-  if (DEV_CONFIG.blueFaceImageUrl) loadTexUrl(DEV_CONFIG.blueFaceImageUrl, 'blue');
-  if (DEV_CONFIG.redFaceImageUrl)  loadTexUrl(DEV_CONFIG.redFaceImageUrl,  'red');
+  if (DEV_CONFIG.blueFaceUrl) loadTexture(DEV_CONFIG.blueFaceUrl, 'blue');
+  if (DEV_CONFIG.redFaceUrl)  loadTexture(DEV_CONFIG.redFaceUrl,  'red');
 
   window.addEventListener('resize', ()=>{
     camera.aspect = innerWidth/innerHeight;
@@ -321,93 +422,221 @@ function init() {
   });
 }
 
-function loadTexUrl(url, team) {
+function loadTexture(url, team) {
   new THREE.TextureLoader().load(url, tex=>{
-    if(team==='blue') blueFaceTex=tex; else redFaceTex=tex;
+    tex.flipY = false;
+    if (team==='blue') blueFaceTex=tex; else redFaceTex=tex;
   });
+}
+
+function buildSharedGeos() {
+  S.gBody   = new THREE.BoxGeometry(0.38, 0.50, 0.22);
+  S.gHead   = new THREE.BoxGeometry(0.32, 0.30, 0.28);
+  // Face plane — covers entire front face of head, no visor strip
+  S.gFace   = new THREE.PlaneGeometry(0.30, 0.28);
+  S.gLeg    = new THREE.BoxGeometry(0.14, 0.36, 0.14);
+  S.gArm    = new THREE.BoxGeometry(0.11, 0.34, 0.11);
+  S.gGun    = new THREE.BoxGeometry(0.05, 0.05, 0.38);
+  S.gStripe = new THREE.BoxGeometry(0.39, 0.05, 0.23);
+  S.gBullet = new THREE.BoxGeometry(0.07, 0.07, 0.24);
+  S.gPart   = new THREE.BoxGeometry(0.09, 0.09, 0.09);
+  S.gRock   = new THREE.DodecahedronGeometry(0.8, 0);
+  S.gCone   = new THREE.ConeGeometry(6, 14, 5);
+  S.gTree   = new THREE.ConeGeometry(1.0, 3.5, 6);
+  S.gTrunk  = new THREE.CylinderGeometry(0.18, 0.22, 1.2, 5);
+
+  S.mGun     = new THREE.MeshLambertMaterial({ color:0x1a1a1a });
+  S.mDead    = new THREE.MeshLambertMaterial({ color:0x2a2a2a });
+  S.mBulletB = new THREE.MeshBasicMaterial({ color:0x44ddff });
+  S.mBulletR = new THREE.MeshBasicMaterial({ color:0xff5500 });
+  S.mRock    = new THREE.MeshLambertMaterial({ color:0x7a7a68 });
+  S.mMtn     = new THREE.MeshLambertMaterial({ color:0x4a5a40 });
+  S.mTree    = new THREE.MeshLambertMaterial({ color:0x2d6e2d });
+  S.mTrunk   = new THREE.MeshLambertMaterial({ color:0x7a5a30 });
+  S.mPartB   = new THREE.MeshBasicMaterial({ color:0x22aaff, transparent:true });
+  S.mPartR   = new THREE.MeshBasicMaterial({ color:0xff4400, transparent:true });
 }
 
 function buildScene() {
-  // Ground
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(110, 75),
-    new THREE.MeshLambertMaterial({ color:0x0e1a0a })
-  );
+  // ── GROUND — bright grass ──
+  const groundGeo = new THREE.PlaneGeometry(130, 90, 1, 1);
+  const groundMat = new THREE.MeshLambertMaterial({ color:0x5a8a3a });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
   scene.add(ground);
-  scene.add(new THREE.GridHelper(110, 55, 0x0c180a, 0x0c180a));
 
-  // Shared rock geo
-  const rg = new THREE.DodecahedronGeometry(0.7, 0);
-  const rm = new THREE.MeshLambertMaterial({ color:0x383828 });
-  [[-6,2],[6,-3],[-9,6],[9,-7],[-3,-9],[3,9],[0,4],[0,-4],[-13,1],[13,-1],[0,0]].forEach(([x,z])=>{
-    const r = new THREE.Mesh(rg, rm);
-    r.position.set(x+(Math.random()-.5), 0.3, z+(Math.random()-.5));
-    r.rotation.y = Math.random()*Math.PI;
-    r.scale.set(.5+Math.random()*.9, .4+Math.random()*.6, .5+Math.random()*.9);
+  // Dirt path in center
+  const pathGeo = new THREE.PlaneGeometry(8, 90);
+  const pathMat = new THREE.MeshLambertMaterial({ color:0xa08050 });
+  const path = new THREE.Mesh(pathGeo, pathMat);
+  path.rotation.x = -Math.PI/2;
+  path.position.set(0, 0.01, 0);
+  path.receiveShadow = true;
+  scene.add(path);
+
+  // Grid lines (subtle)
+  const grid = new THREE.GridHelper(130, 65, 0x4a7a30, 0x4a7a30);
+  grid.position.y = 0.02;
+  scene.add(grid);
+
+  // Center dividing line
+  const lGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0.05,-44), new THREE.Vector3(0,0.05,44)
+  ]);
+  const lMat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.2 });
+  scene.add(new THREE.Line(lGeo, lMat));
+
+  // Rocks
+  const rockPos = [[-5,3],[5,-4],[0,0],[-9,7],[9,-7],[-4,-10],[4,10],[-13,1],[13,-1],[0,6],[0,-6],[-7,-2],[7,2]];
+  rockPos.forEach(([x,z])=>{
+    const r = new THREE.Mesh(S.gRock, S.mRock);
+    r.position.set(x+(Math.random()-.5)*.6, 0.3, z+(Math.random()-.5)*.6);
+    r.rotation.set(Math.random(), Math.random()*Math.PI, Math.random());
+    r.scale.set(.4+Math.random()*.7, .3+Math.random()*.5, .4+Math.random()*.7);
+    r.castShadow=true; r.receiveShadow=true;
     scene.add(r);
   });
 
-  // Mountains
-  const mg = new THREE.ConeGeometry(5,12,5), mm = new THREE.MeshLambertMaterial({ color:0x060c06 });
-  for(let i=0;i<12;i++){
-    const mt = new THREE.Mesh(mg,mm);
-    mt.position.set(-50+i*9, 6, (i%2?1:-1)*36);
-    mt.scale.set(.7+Math.random()*.6,.6+Math.random()*.7,.7+Math.random()*.6);
+  // Trees (cones + trunks)
+  const treePts = [[-24,-8],[-26,4],[-28,-15],[-25,12],[24,8],[26,-4],[28,15],[25,-12],[22,0],[-22,0],[-24,20],[24,-20]];
+  treePts.forEach(([x,z])=>{
+    const h = 3+Math.random()*2;
+    const tree = new THREE.Mesh(S.gTree, S.mTree);
+    tree.position.set(x+(Math.random()-.5)*2, h/2+1.0, z+(Math.random()-.5)*2);
+    tree.scale.set(.7+Math.random()*.6, (.7+Math.random()*.5)*(h/3.5), .7+Math.random()*.6);
+    tree.castShadow=true;
+    scene.add(tree);
+    const trunk = new THREE.Mesh(S.gTrunk, S.mTrunk);
+    trunk.position.set(tree.position.x, 0.6, tree.position.z);
+    trunk.castShadow=true;
+    scene.add(trunk);
+  });
+
+  // Mountains in far distance
+  for (let i=0;i<14;i++) {
+    const mt = new THREE.Mesh(S.gCone, S.mMtn);
+    const side = i<7?1:-1;
+    mt.position.set(-56+i%7*18, 7, side*48+Math.random()*5);
+    mt.scale.set(.6+Math.random()*.9, .5+Math.random()*.8, .6+Math.random()*.9);
     scene.add(mt);
   }
+
+  // Clouds (flat white discs far up)
+  const cloudGeo = new THREE.SphereGeometry(1,6,4);
+  const cloudMat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85 });
+  for (let i=0;i<8;i++) {
+    const grp = new THREE.Group();
+    for (let j=0;j<4;j++) {
+      const c = new THREE.Mesh(cloudGeo, cloudMat);
+      c.position.set((Math.random()-.5)*4, Math.random()*1, (Math.random()-.5)*2);
+      c.scale.set(1.2+Math.random(), 0.55+Math.random()*.3, 1+Math.random());
+      grp.add(c);
+    }
+    grp.position.set(-60+Math.random()*120, 38+Math.random()*12, -40+Math.random()*30);
+    grp.scale.setScalar(2+Math.random()*2);
+    scene.add(grp);
+  }
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // SOLDIER MESH
-// ═══════════════════════════════════════════════════════════════════
-function teamMats(team) {
-  if (S['m_'+team]) return S['m_'+team];
-  const b = team==='blue';
-  S['m_'+team] = {
-    armor : new THREE.MeshLambertMaterial({ color: b?0x0044aa:0xaa2000 }),
-    detail: new THREE.MeshLambertMaterial({ color: b?0x0099ff:0xff5500 }),
-    visor : new THREE.MeshLambertMaterial({ color: b?0x00ffee:0xff4400, emissive: b?0x003322:0x330800 }),
+// ═══════════════════════════════════════════
+function getTeamMats(team) {
+  const k = 'm_'+team;
+  if (S[k]) return S[k];
+  const blue = team==='blue';
+  S[k] = {
+    armor : new THREE.MeshLambertMaterial({ color: blue?0x1155cc:0xcc2200 }),
+    detail: new THREE.MeshLambertMaterial({ color: blue?0x33aaff:0xff6600 }),
   };
-  return S['m_'+team];
+  return S[k];
 }
 
-function makeSoldier(team) {
+function makeSoldierMesh(team) {
   const g = new THREE.Group();
-  const m = teamMats(team);
+  const m = getTeamMats(team);
   const faceTex = team==='blue' ? blueFaceTex : redFaceTex;
 
-  const body = new THREE.Mesh(S.gBody, m.armor); body.position.y=0.50; g.add(body);
-  const head = new THREE.Mesh(S.gHead, m.armor); head.position.y=0.93; g.add(head);
-  const visor= new THREE.Mesh(S.gVisor,m.visor); visor.position.set(0,0.94,0.13); g.add(visor);
+  // Body
+  const body = new THREE.Mesh(S.gBody, m.armor);
+  body.position.y = 0.52;
+  body.castShadow=true;
+  g.add(body);
 
+  // Chest stripe
+  const stripe = new THREE.Mesh(S.gStripe, m.detail);
+  stripe.position.set(0, 0.65, 0);
+  g.add(stripe);
+
+  // Head — plain armor color, no visor strip
+  const head = new THREE.Mesh(S.gHead, m.armor);
+  head.position.y = 0.97;
+  head.castShadow=true;
+  g.add(head);
+
+  // Face: if texture uploaded → show it full-face, else show a subtle screen glow
   if (faceTex) {
-    const fm = new THREE.MeshBasicMaterial({ map:faceTex, transparent:true, depthWrite:false });
+    // Full front-face texture — covers entire helmet face
+    const fm = new THREE.MeshBasicMaterial({
+      map: faceTex,
+      transparent: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+    });
     const fp = new THREE.Mesh(S.gFace, fm);
-    fp.position.set(0, 0.93, 0.13);
+    // Place flush with front face of head (depth 0.28/2 = 0.14 + tiny offset)
+    fp.position.set(0, 0.97, 0.141);
     g.add(fp);
+  } else {
+    // Default: a glowing visor color block (no stripe on top)
+    const blue = team==='blue';
+    const visorMat = new THREE.MeshBasicMaterial({
+      color: blue?0x44eeff:0xff5500,
+    });
+    // Just a thin emissive band across the lower half of the face
+    const vGeo = new THREE.BoxGeometry(0.26, 0.10, 0.01);
+    const visor = new THREE.Mesh(vGeo, visorMat);
+    visor.position.set(0, 0.94, 0.141);
+    g.add(visor);
   }
 
-  [-0.085, 0.085].forEach(ox=>{ const l=new THREE.Mesh(S.gLeg,m.armor); l.position.set(ox,.18,0); g.add(l); });
-  [-0.245, 0.245].forEach(ox=>{ const a=new THREE.Mesh(S.gArm,m.armor); a.position.set(ox,.51,0); g.add(a); });
+  // Legs
+  [-0.09, 0.09].forEach(ox=>{
+    const l = new THREE.Mesh(S.gLeg, m.armor);
+    l.position.set(ox, 0.19, 0);
+    l.castShadow=true;
+    g.add(l);
+  });
 
-  const gun = new THREE.Mesh(S.gGun, S.mGun); gun.position.set(0.23,.55,.20); g.add(gun);
-  const str = new THREE.Mesh(S.gStripe,m.detail); str.position.set(0,.65,0); g.add(str);
+  // Arms
+  [-0.26, 0.26].forEach(ox=>{
+    const a = new THREE.Mesh(S.gArm, m.armor);
+    a.position.set(ox, 0.52, 0);
+    a.castShadow=true;
+    g.add(a);
+  });
+
+  // Gun
+  const gun = new THREE.Mesh(S.gGun, S.mGun);
+  gun.position.set(0.24, 0.56, 0.22);
+  g.add(gun);
 
   return g;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// ARMY SPAWN
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// SPAWN
+// ═══════════════════════════════════════════
 function spawnArmies() {
   soldiers.forEach(s=>scene.remove(s.mesh));
   bullets.forEach(b=>scene.remove(b.mesh));
   particles.forEach(p=>scene.remove(p.mesh));
   soldiers=[]; bullets=[]; particles=[];
+  poolBlue=[]; poolRed=[];
   blueKills=0; redKills=0; totalShots=0; frameCount=0;
-  // Invalidate team mats so face textures rebuild
-  delete S.m_blue; delete S.m_red;
+  delete S.m_blue; delete S.m_red; // rebuild with fresh face textures
 
   spawnTeam('blue', CFG.blueCount);
   spawnTeam('red',  CFG.redCount);
@@ -416,154 +645,141 @@ function spawnArmies() {
 
 function spawnTeam(team, count) {
   const cols = Math.ceil(Math.sqrt(count)*1.5);
-  for (let i=0;i<count;i++){
+  for (let i=0;i<count;i++) {
     const col=i%cols, row=Math.floor(i/cols);
-    const xBase = team==='blue' ? -20 : 20;
-    const xDir  = team==='blue' ? 1 : -1;
-    const x = xBase + xDir*col*1.25 + (Math.random()-.5)*.3;
-    const z = -(Math.floor(count/cols)/2*1.25) + row*1.25 + (Math.random()-.5)*.3;
-    const mesh = makeSoldier(team);
+    const xBase = team==='blue'?-20:20;
+    const xDir  = team==='blue'?1:-1;
+    const x = xBase+xDir*col*1.3+(Math.random()-.5)*.3;
+    const z = -(Math.floor(count/cols)/2*1.3)+row*1.3+(Math.random()-.5)*.3;
+    const mesh = makeSoldierMesh(team);
     mesh.position.set(x, 0, z);
     if (team==='red') mesh.rotation.y=Math.PI;
     scene.add(mesh);
     soldiers.push({
       mesh, team,
-      hp: CFG.soldierHp, maxHp: CFG.soldierHp,
-      alive: true,
-      fireCooldown: Math.random()*80,
-      bobOffset: Math.random()*Math.PI*2,
-      target: null, searchCd: 0,
+      hp:CFG.hp, maxHp:CFG.hp,
+      alive:true,
+      fireCooldown:Math.random()*FIRE_CD,
+      bobOffset:Math.random()*Math.PI*2,
+      target:null, searchCd:0,
     });
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// BULLETS
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// PROJECTILES
+// ═══════════════════════════════════════════
 function fireBullet(fromPos, toPos, team) {
-  if (bullets.length >= MAX_BULLETS) return;
+  if (bullets.length>=MAX_B) return;
   const mesh = new THREE.Mesh(S.gBullet, team==='blue'?S.mBulletB:S.mBulletR);
-  const origin = fromPos.clone().add(new THREE.Vector3(0,.6,0));
+  const origin = fromPos.clone().add(new THREE.Vector3(0,.62,0));
   mesh.position.copy(origin);
   const dir = toPos.clone().sub(fromPos).normalize();
   mesh.lookAt(mesh.position.clone().add(dir));
   scene.add(mesh);
-  bullets.push({ mesh, dir, team, life:52, hit:false });
+  bullets.push({ mesh, dir, team, life:55, hit:false });
   totalShots++;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // PARTICLES
-// ═══════════════════════════════════════════════════════════════════
-function spawnParticles(pos, team) {
-  const n = Math.min(4, MAX_PARTICLES - particles.length);
-  const baseMat = team==='blue' ? S.mPartB : S.mPartR;
-  for (let i=0;i<n;i++){
+// ═══════════════════════════════════════════
+function boom(pos, team) {
+  const n = Math.min(5, MAX_P-particles.length);
+  const baseMat = team==='blue'?S.mPartB:S.mPartR;
+  for (let i=0;i<n;i++) {
     const mesh = new THREE.Mesh(S.gPart, baseMat.clone());
     mesh.position.copy(pos).add(new THREE.Vector3(0,.7,0));
     scene.add(mesh);
     particles.push({
       mesh,
-      vel: new THREE.Vector3((Math.random()-.5)*.12, Math.random()*.11+.03, (Math.random()-.5)*.12),
-      life: 22+Math.random()*14,
+      vel:new THREE.Vector3((Math.random()-.5)*.13,Math.random()*.12+.04,(Math.random()-.5)*.13),
+      life:20+Math.random()*14,
     });
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// BATTLE UPDATE (optimised)
-// ═══════════════════════════════════════════════════════════════════
-let poolBlue=[], poolRed=[];
-
+// ═══════════════════════════════════════════
+// BATTLE UPDATE
+// ═══════════════════════════════════════════
 function rebuildPools() {
   poolBlue=[]; poolRed=[];
   for(let i=0;i<soldiers.length;i++){
     const s=soldiers[i];
-    if(s.alive){ if(s.team==='blue') poolBlue.push(s); else poolRed.push(s); }
+    if(s.alive){if(s.team==='blue')poolBlue.push(s);else poolRed.push(s);}
   }
 }
 
-function findNearest(soldier) {
-  const pool = soldier.team==='blue' ? poolRed : poolBlue;
-  if (!pool.length) return null;
+function findNearest(s) {
+  const pool = s.team==='blue'?poolRed:poolBlue;
+  if(!pool.length) return null;
   let best=null, bd=1e9;
-  const px=soldier.mesh.position.x, pz=soldier.mesh.position.z;
+  const px=s.mesh.position.x, pz=s.mesh.position.z;
   for(let i=0;i<pool.length;i++){
     const e=pool[i];
     const dx=e.mesh.position.x-px, dz=e.mesh.position.z-pz;
     const d=dx*dx+dz*dz;
-    if(d<bd){ bd=d; best=e; }
+    if(d<bd){bd=d;best=e;}
   }
-  return best ? { enemy:best, dist:Math.sqrt(bd) } : null;
+  return best?{enemy:best,dist:Math.sqrt(bd)}:null;
 }
 
 function updateSoldiers() {
   rebuildPools();
   for(let i=0;i<soldiers.length;i++){
-    const s=soldiers[i];
-    if(!s.alive) continue;
-
-    s.searchCd -= gameSpeed;
-    if(s.searchCd<=0 || !s.target || !s.target.alive){
-      const r=findNearest(s);
-      if(!r) continue;
-      s.target=r.enemy; s.cachedDist=r.dist;
-      s.searchCd = 10+Math.random()*8|0;
+    const s=soldiers[i]; if(!s.alive) continue;
+    s.searchCd-=gameSpeed;
+    if(s.searchCd<=0||!s.target||!s.target.alive){
+      const r=findNearest(s); if(!r) continue;
+      s.target=r.enemy; s.searchCd=10+Math.random()*8|0;
     }
-
     const en=s.target;
-    const dx=en.mesh.position.x - s.mesh.position.x;
-    const dz=en.mesh.position.z - s.mesh.position.z;
+    const dx=en.mesh.position.x-s.mesh.position.x;
+    const dz=en.mesh.position.z-s.mesh.position.z;
     const dist=Math.sqrt(dx*dx+dz*dz);
-    s.cachedDist=dist;
 
-    s.mesh.rotation.y = Math.atan2(dx,dz);
-    s.mesh.position.y = Math.sin(frameCount*.09+s.bobOffset)*.025;
+    s.mesh.rotation.y=Math.atan2(dx,dz);
+    s.mesh.position.y=Math.sin(frameCount*.09+s.bobOffset)*.03;
 
     if(dist>FIRE_RANGE){
-      const inv=SOLDIER_SPD*gameSpeed/dist;
-      s.mesh.position.x+=dx*inv;
-      s.mesh.position.z+=dz*inv;
+      const inv=SPD*gameSpeed/dist;
+      s.mesh.position.x+=dx*inv; s.mesh.position.z+=dz*inv;
     } else {
-      const sf=Math.sin(frameCount*.04+s.bobOffset)*SOLDIER_SPD*.35*gameSpeed;
-      s.mesh.position.x-=dz/dist*sf;
-      s.mesh.position.z+=dx/dist*sf;
+      const sf=Math.sin(frameCount*.04+s.bobOffset)*SPD*.35*gameSpeed;
+      s.mesh.position.x-=dz/dist*sf; s.mesh.position.z+=dx/dist*sf;
     }
-    s.mesh.position.x=Math.max(-38,Math.min(38,s.mesh.position.x));
-    s.mesh.position.z=Math.max(-28,Math.min(28,s.mesh.position.z));
+    s.mesh.position.x=Math.max(-42,Math.min(42,s.mesh.position.x));
+    s.mesh.position.z=Math.max(-32,Math.min(32,s.mesh.position.z));
 
-    if(s.fireCooldown<=0 && dist<=FIRE_RANGE){
-      fireBullet(s.mesh.position, en.mesh.position, s.team);
+    if(s.fireCooldown<=0&&dist<=FIRE_RANGE){
+      fireBullet(s.mesh.position,en.mesh.position,s.team);
       s.fireCooldown=FIRE_CD+Math.random()*24;
-    } else {
-      s.fireCooldown-=gameSpeed;
-    }
+    } else { s.fireCooldown-=gameSpeed; }
   }
 }
 
 function updateBullets() {
-  const spd=BULLET_SPD*gameSpeed;
+  const spd=BSPD*gameSpeed;
   for(let i=bullets.length-1;i>=0;i--){
     const b=bullets[i];
-    if(b.hit){ scene.remove(b.mesh); bullets.splice(i,1); continue; }
+    if(b.hit){scene.remove(b.mesh);bullets.splice(i,1);continue;}
     b.mesh.position.x+=b.dir.x*spd;
     b.mesh.position.y+=b.dir.y*spd;
     b.mesh.position.z+=b.dir.z*spd;
     b.life-=gameSpeed;
     const pool=b.team==='blue'?poolRed:poolBlue;
-    const bx=b.mesh.position.x, bz=b.mesh.position.z;
+    const bx=b.mesh.position.x,bz=b.mesh.position.z;
     for(let j=0;j<pool.length;j++){
       const t=pool[j];
-      const dx=t.mesh.position.x-bx, dz=t.mesh.position.z-bz;
-      if(dx*dx+dz*dz<0.42){
-        b.hit=true;
-        t.hp--;
-        spawnParticles(t.mesh.position, b.team);
-        if(t.hp<=0) killSoldier(t, b.team);
+      const dx=t.mesh.position.x-bx,dz=t.mesh.position.z-bz;
+      if(dx*dx+dz*dz<0.40){
+        b.hit=true; t.hp--;
+        boom(t.mesh.position,b.team);
+        if(t.hp<=0)killSoldier(t,b.team);
         break;
       }
     }
-    if(b.life<=0||b.hit){ scene.remove(b.mesh); bullets.splice(i,1); }
+    if(b.life<=0||b.hit){scene.remove(b.mesh);bullets.splice(i,1);}
   }
 }
 
@@ -573,132 +789,138 @@ function updateParticles() {
     p.mesh.position.add(p.vel);
     p.vel.y-=.007;
     p.life-=gameSpeed;
-    p.mesh.material.opacity=Math.max(0,p.life/30);
-    if(p.life<=0){ scene.remove(p.mesh); particles.splice(i,1); }
+    p.mesh.material.opacity=Math.max(0,p.life/28);
+    if(p.life<=0){scene.remove(p.mesh);particles.splice(i,1);}
   }
 }
 
 function killSoldier(s, killer) {
   s.alive=false;
-  if(killer==='blue'){ blueKills++; document.getElementById('blue-kills').textContent=blueKills; }
-  else               { redKills++;  document.getElementById('red-kills').textContent=redKills;   }
+  if(killer==='blue'){blueKills++;document.getElementById('blue-kills').textContent=blueKills;}
+  else{redKills++;document.getElementById('red-kills').textContent=redKills;}
   s.mesh.rotation.z=Math.PI/2;
-  s.mesh.position.y=-0.18;
-  s.mesh.traverse(m=>{ if(m.isMesh) m.material=S.mDead; });
-  addLog(`${killer==='blue'?'ALPHA':'OMEGA'} eliminated a soldier`, killer);
+  s.mesh.position.y=-0.2;
+  s.mesh.traverse(m=>{if(m.isMesh)m.material=S.mDead;});
+  // Occasional log message (not every kill — too spammy)
+  if(Math.random()<0.18) addLog(`${killer==='blue'?'Alpha':'Omega'} scored a kill`, killer);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// HUD
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// HUD UPDATE
+// ═══════════════════════════════════════════
 function updateHUD() {
   let ab=poolBlue.length, ar=poolRed.length;
-  // Re-count from scratch (pools might be stale at start)
-  if (!running && soldiers.length) {
-    ab=0; ar=0;
-    for(let i=0;i<soldiers.length;i++){ const s=soldiers[i]; if(s.alive){if(s.team==='blue')ab++;else ar++;} }
+  if(!running&&soldiers.length){
+    ab=0;ar=0;
+    for(let i=0;i<soldiers.length;i++){const s=soldiers[i];if(s.alive){if(s.team==='blue')ab++;else ar++;}}
   }
   document.getElementById('blue-alive').textContent=ab;
   document.getElementById('red-alive').textContent=ar;
-  document.getElementById('blue-health').style.width=(ab/CFG.blueCount*100)+'%';
-  document.getElementById('red-health').style.width =(ar/CFG.redCount *100)+'%';
-  document.getElementById('stat-shots').textContent='SHOTS: '+totalShots;
+  document.getElementById('blue-health').style.width=(ab/Math.max(1,CFG.blueCount)*100)+'%';
+  document.getElementById('red-health').style.width=(ar/Math.max(1,CFG.redCount)*100)+'%';
+  document.getElementById('stat-shots').textContent=totalShots+' SHOTS';
+
   if(startTime){
     const e=Math.floor((Date.now()-startTime)/1000);
-    document.getElementById('stat-time').textContent=`TIME: ${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`;
+    const mm=String(Math.floor(e/60)).padStart(2,'0'), ss=String(e%60).padStart(2,'0');
+    document.getElementById('stat-time').textContent=`${mm}:${ss}`;
   }
-  if(running && (ab===0||ar===0)){
+
+  if(running&&(ab===0||ar===0)){
     running=false;
     const w=ab>0?'ALPHA BATTALION':ar>0?'OMEGA CORPS':'DRAW';
-    const c=ab>0?'#00aaff':ar>0?'#ff4422':'#ffcc00';
-    document.getElementById('victory-title').textContent=w+' WINS';
+    const c=ab>0?'#4dc3ff':ar>0?'#ff6644':'#ffd700';
+    document.getElementById('victory-title').textContent=w;
     document.getElementById('victory-title').style.color=c;
+    // Victory stats
+    const e=startTime?Math.floor((Date.now()-startTime)/1000):0;
+    const mm=String(Math.floor(e/60)).padStart(2,'0'),ss=String(e%60).padStart(2,'0');
+    document.getElementById('v-blue-kills').textContent=blueKills;
+    document.getElementById('v-red-kills').textContent=redKills;
+    document.getElementById('v-shots').textContent=totalShots;
+    document.getElementById('v-time').textContent=`${mm}:${ss}`;
     document.getElementById('victory').classList.add('show');
-    document.getElementById('phase-display').textContent='BATTLE OVER';
-    document.getElementById('btn-start').textContent='▶ DEPLOY';
-    addLog(w+' wins the battle!','system');
+    document.getElementById('phase-tag').textContent='BATTLE OVER';
+    document.getElementById('btn-start').textContent='▶ DEPLOY ARMIES';
+    addLog(w+' claims victory!','system');
   }
 }
 
-function addLog(msg, type='system') {
+let _logThrottle=0;
+function addLog(msg,type='system'){
+  // Throttle to max 1 per 12 frames
+  if(frameCount-_logThrottle<12&&type!=='system') return;
+  _logThrottle=frameCount;
   const d=document.createElement('div');
-  d.className='log-entry '+type; d.textContent='> '+msg;
+  d.className='log-entry '+type; d.textContent=msg;
   const el=document.getElementById('battle-log');
   el.insertBefore(d,el.firstChild);
-  while(el.children.length>7) el.removeChild(el.lastChild);
+  while(el.children.length>6)el.removeChild(el.lastChild);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// SPECTATOR CAMERA (Minecraft-style)
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// SPECTATOR CAMERA
+// ═══════════════════════════════════════════
 let pointerLocked=false;
-let camYaw=-Math.PI*.5, camPitch=-0.45;
+let camYaw=-Math.PI/2, camPitch=-0.42;
 let autoAngle=0;
 const KEYS={};
 const CAM_SPD=0.22;
 
 function updateCamera() {
-  if (pointerLocked) {
-    const spd = (KEYS.ShiftLeft||KEYS.ShiftRight) ? CAM_SPD*2.8 : CAM_SPD;
-
-    // Forward vector (ignore pitch for horizontal, include for vertical fly)
-    const sinY=Math.sin(camYaw), cosY=Math.cos(camYaw);
+  if(pointerLocked){
+    const spd=(KEYS.ShiftLeft||KEYS.ShiftRight)?CAM_SPD*3:CAM_SPD;
     const cosP=Math.cos(camPitch), sinP=Math.sin(camPitch);
-    const fwdH = new THREE.Vector3(-sinY, 0, -cosY); // horizontal fwd
-    const fwdF = new THREE.Vector3(-sinY*cosP, sinP, -cosY*cosP); // full look fwd
-    const right = new THREE.Vector3(cosY, 0, -sinY);
-    const up    = new THREE.Vector3(0,1,0);
-
-    if(KEYS.KeyW||KEYS.ArrowUp)    camera.position.addScaledVector(fwdF, spd);
-    if(KEYS.KeyS||KEYS.ArrowDown)  camera.position.addScaledVector(fwdF,-spd);
+    const sinY=Math.sin(camYaw), cosY=Math.cos(camYaw);
+    const fwd=new THREE.Vector3(-sinY*cosP, sinP, -cosY*cosP);
+    const right=new THREE.Vector3(cosY,0,-sinY);
+    const up=new THREE.Vector3(0,1,0);
+    if(KEYS.KeyW||KEYS.ArrowUp)    camera.position.addScaledVector(fwd,spd);
+    if(KEYS.KeyS||KEYS.ArrowDown)  camera.position.addScaledVector(fwd,-spd);
     if(KEYS.KeyA||KEYS.ArrowLeft)  camera.position.addScaledVector(right,-spd);
-    if(KEYS.KeyD||KEYS.ArrowRight) camera.position.addScaledVector(right, spd);
-    if(KEYS.KeyE||KEYS.Space)      camera.position.addScaledVector(up, spd);
+    if(KEYS.KeyD||KEYS.ArrowRight) camera.position.addScaledVector(right,spd);
+    if(KEYS.KeyE||KEYS.Space)      camera.position.addScaledVector(up,spd);
     if(KEYS.KeyQ)                  camera.position.addScaledVector(up,-spd);
-
     camera.rotation.order='YXZ';
     camera.rotation.y=camYaw;
     camera.rotation.x=camPitch;
   } else {
-    // Smooth auto-orbit
-    autoAngle += 0.0005*gameSpeed;
-    camera.position.x = Math.sin(autoAngle)*10;
-    camera.position.z = 34+Math.cos(autoAngle*.5)*4;
-    camera.position.y = 23+Math.sin(autoAngle*.7)*2;
-    camera.lookAt(0,2,0);
+    autoAngle+=0.0004*gameSpeed;
+    camera.position.x=Math.sin(autoAngle)*12;
+    camera.position.z=36+Math.cos(autoAngle*.5)*5;
+    camera.position.y=22+Math.sin(autoAngle*.65)*3;
+    camera.lookAt(0,1,0);
   }
 }
 
-const cnv = document.getElementById('gameCanvas');
-cnv.addEventListener('click', ()=>{
-  if (!document.getElementById('settings-panel').classList.contains('open'))
+const cnv=document.getElementById('gameCanvas');
+cnv.addEventListener('click',()=>{
+  if(!document.getElementById('editor-panel').classList.contains('open'))
     cnv.requestPointerLock();
 });
-document.addEventListener('pointerlockchange', ()=>{
-  pointerLocked = document.pointerLockElement===cnv;
-  document.getElementById('crosshair').classList.toggle('show', pointerLocked);
-  const hint = document.getElementById('cam-hint');
-  hint.style.opacity = pointerLocked ? '0' : '1';
-  if (!pointerLocked) autoAngle=Math.atan2(camera.position.x, camera.position.z);
+document.addEventListener('pointerlockchange',()=>{
+  pointerLocked=document.pointerLockElement===cnv;
+  document.getElementById('xhair').classList.toggle('show',pointerLocked);
+  document.getElementById('cam-hint').style.opacity=pointerLocked?'0':'1';
+  if(!pointerLocked) autoAngle=Math.atan2(camera.position.x,camera.position.z);
 });
-document.addEventListener('mousemove', e=>{
-  if(!pointerLocked) return;
-  camYaw   -= e.movementX*0.0022;
-  camPitch -= e.movementY*0.0022;
-  camPitch  = Math.max(-Math.PI/2+.04, Math.min(Math.PI/2-.04, camPitch));
+document.addEventListener('mousemove',e=>{
+  if(!pointerLocked)return;
+  camYaw-=e.movementX*.002;
+  camPitch-=e.movementY*.002;
+  camPitch=Math.max(-Math.PI/2+.03,Math.min(Math.PI/2-.03,camPitch));
 });
-document.addEventListener('keydown', e=>{
+document.addEventListener('keydown',e=>{
   KEYS[e.code]=true;
-  if(e.code==='Escape'&&pointerLocked) document.exitPointerLock();
+  if(e.code==='Escape'&&pointerLocked)document.exitPointerLock();
 });
-document.addEventListener('keyup', e=>{ KEYS[e.code]=false; });
+document.addEventListener('keyup',e=>KEYS[e.code]=false);
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // MAIN LOOP
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function loop() {
   requestAnimationFrame(loop);
-
   if(running){
     frameCount+=gameSpeed;
     updateSoldiers();
@@ -706,116 +928,110 @@ function loop() {
     updateParticles();
     if(frameCount%4===0) updateHUD();
   }
-
   updateCamera();
-  renderer.render(scene, camera);
-
-  // FPS counter
+  renderer.render(scene,camera);
+  // FPS
   fpsCount++;
   const now=performance.now();
   if(now-fpsLast>=1000){
-    document.getElementById('stat-fps').textContent='FPS: '+fpsCount;
+    document.getElementById('stat-fps').textContent=fpsCount+' FPS';
     fpsCount=0; fpsLast=now;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CONTROLS
-// ═══════════════════════════════════════════════════════════════════
-document.getElementById('btn-start').addEventListener('click', ()=>{
+// ═══════════════════════════════════════════
+// UI CONTROLS
+// ═══════════════════════════════════════════
+document.getElementById('btn-start').addEventListener('click',()=>{
   if(!running){
     document.getElementById('victory').classList.remove('show');
     if(!soldiers.length) spawnArmies();
     running=true; startTime=Date.now();
-    document.getElementById('phase-display').textContent='BATTLE IN PROGRESS';
+    document.getElementById('phase-tag').textContent='IN PROGRESS';
     document.getElementById('btn-start').textContent='⏸ PAUSE';
-    addLog('Battle commences! Armies advance.','system');
+    addLog('Battle commences — armies advance!','system');
   } else {
     running=false;
-    document.getElementById('phase-display').textContent='PAUSED';
+    document.getElementById('phase-tag').textContent='PAUSED';
     document.getElementById('btn-start').textContent='▶ RESUME';
   }
 });
 
-function resetGame() {
+function resetGame(){
   running=false;
   document.getElementById('victory').classList.remove('show');
   soldiers.forEach(s=>scene.remove(s.mesh));
   bullets.forEach(b=>scene.remove(b.mesh));
   particles.forEach(p=>scene.remove(p.mesh));
-  soldiers=[]; bullets=[]; particles=[];
-  blueKills=0; redKills=0; totalShots=0; frameCount=0; startTime=null;
-  poolBlue=[]; poolRed=[];
+  soldiers=[];bullets=[];particles=[];poolBlue=[];poolRed=[];
+  blueKills=0;redKills=0;totalShots=0;frameCount=0;startTime=null;
   ['blue-kills','red-kills','blue-alive','red-alive'].forEach(id=>document.getElementById(id).textContent=0);
   document.getElementById('blue-health').style.width='100%';
   document.getElementById('red-health').style.width='100%';
-  document.getElementById('stat-time').textContent='TIME: 00:00';
-  document.getElementById('stat-shots').textContent='SHOTS: 0';
-  document.getElementById('phase-display').textContent='STANDBY';
-  document.getElementById('btn-start').textContent='▶ DEPLOY';
+  document.getElementById('stat-time').textContent='00:00';
+  document.getElementById('stat-shots').textContent='0 SHOTS';
+  document.getElementById('phase-tag').textContent='STANDBY';
+  document.getElementById('btn-start').textContent='▶ DEPLOY ARMIES';
   document.getElementById('battle-log').innerHTML='';
 }
-document.getElementById('btn-reset').addEventListener('click', resetGame);
-document.getElementById('btn-again').addEventListener('click', resetGame);
+document.getElementById('btn-reset').addEventListener('click',resetGame);
+document.getElementById('btn-again').addEventListener('click',resetGame);
 
 const SPEEDS=[1,2,4,.5]; let sIdx=0;
-document.getElementById('btn-speed').addEventListener('click', ()=>{
+document.getElementById('btn-speed').addEventListener('click',()=>{
   sIdx=(sIdx+1)%SPEEDS.length;
   gameSpeed=SPEEDS[sIdx];
-  document.getElementById('btn-speed').textContent='SPEED: '+gameSpeed+'×';
+  document.getElementById('btn-speed').textContent='SPEED ×'+gameSpeed;
 });
 
-// ── Settings panel ──
-document.getElementById('btn-settings').addEventListener('click', ()=>{
-  document.getElementById('settings-panel').classList.toggle('open');
-  if(pointerLocked) document.exitPointerLock();
+// Editor panel
+document.getElementById('btn-editor').addEventListener('click',()=>{
+  document.getElementById('editor-panel').classList.toggle('open');
+  if(pointerLocked)document.exitPointerLock();
 });
-document.getElementById('btn-close-settings').addEventListener('click', ()=>{
-  document.getElementById('settings-panel').classList.remove('open');
+document.getElementById('btn-close-editor').addEventListener('click',()=>{
+  document.getElementById('editor-panel').classList.remove('open');
 });
-
 ['blue-count','red-count','soldier-hp'].forEach(id=>{
   const el=document.getElementById(id);
   const vl=document.getElementById(id+'-val');
   el.addEventListener('input',()=>vl.textContent=el.value);
 });
-
-document.getElementById('btn-apply').addEventListener('click', ()=>{
-  CFG.blueCount = +document.getElementById('blue-count').value;
-  CFG.redCount  = +document.getElementById('red-count').value;
-  CFG.soldierHp = +document.getElementById('soldier-hp').value;
-  document.getElementById('settings-panel').classList.remove('open');
+document.getElementById('btn-apply').addEventListener('click',()=>{
+  CFG.blueCount=+document.getElementById('blue-count').value;
+  CFG.redCount=+document.getElementById('red-count').value;
+  CFG.hp=+document.getElementById('soldier-hp').value;
+  document.getElementById('editor-panel').classList.remove('open');
   resetGame();
-  addLog(`Alpha: ${CFG.blueCount} troops | Omega: ${CFG.redCount} troops | HP: ${CFG.soldierHp}`,'system');
+  addLog(`Alpha:${CFG.blueCount}  Omega:${CFG.redCount}  HP:${CFG.hp}`,'system');
 });
 
-// ── Face image upload ──
-function setupFaceInput(inputId, previewId, team) {
-  document.getElementById(inputId).addEventListener('change', e=>{
-    const file=e.target.files[0]; if(!file) return;
+// Face upload
+function setupFaceInput(inputId, previewId, team){
+  document.getElementById(inputId).addEventListener('change',e=>{
+    const file=e.target.files[0]; if(!file)return;
     const url=URL.createObjectURL(file);
     const prev=document.getElementById(previewId);
-    // Replace content but keep file input
-    prev.innerHTML=`<img src="${url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"><input type="file" accept="image/*" id="${inputId}" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">`;
-    setupFaceInput(inputId, previewId, team);
-    new THREE.TextureLoader().load(url, tex=>{
-      if(team==='blue') blueFaceTex=tex; else redFaceTex=tex;
-      // Invalidate team material so next spawn picks up texture
+    prev.innerHTML=`<img src="${url}"><input type="file" accept="image/*" id="${inputId}" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">`;
+    setupFaceInput(inputId,previewId,team);
+    new THREE.TextureLoader().load(url,tex=>{
+      tex.flipY=false;
+      if(team==='blue')blueFaceTex=tex; else redFaceTex=tex;
       delete S['m_'+team];
-      addLog(`${team==='blue'?'Alpha':'Omega'} face image loaded!`, team);
+      addLog(`${team==='blue'?'Alpha':'Omega'} face image ready!`,'good');
     });
   });
 }
-setupFaceInput('blue-face-input','blue-face-preview','blue');
-setupFaceInput('red-face-input','red-face-preview','red');
+setupFaceInput('fi-blue','fp-blue','blue');
+setupFaceInput('fi-red','fp-red','red');
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // BOOT
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 init();
 loop();
-addLog('Systems online. Click DEPLOY to begin.','system');
-addLog('Click canvas to enter spectator mode (WASD+mouse).','system');
+addLog('Systems online — click DEPLOY to begin.','system');
+addLog('Click the battlefield to enter spectator mode.','system');
 </script>
 </body>
 </html>
