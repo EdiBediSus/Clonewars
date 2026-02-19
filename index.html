@@ -424,16 +424,16 @@ function init() {
 
 function loadTexture(url, team) {
   new THREE.TextureLoader().load(url, tex=>{
-    tex.flipY = false;
+    tex.needsUpdate=true;
     if (team==='blue') blueFaceTex=tex; else redFaceTex=tex;
   });
 }
 
 function buildSharedGeos() {
   S.gBody   = new THREE.BoxGeometry(0.38, 0.50, 0.22);
-  S.gHead   = new THREE.BoxGeometry(0.32, 0.30, 0.28);
-  // Face plane — covers entire front face of head, no visor strip
-  S.gFace   = new THREE.PlaneGeometry(0.30, 0.28);
+  S.gHead   = new THREE.BoxGeometry(0.46, 0.44, 0.40);
+  // Face plane — covers entire front face of head
+  S.gFace   = new THREE.PlaneGeometry(0.44, 0.42);
   S.gLeg    = new THREE.BoxGeometry(0.14, 0.36, 0.14);
   S.gArm    = new THREE.BoxGeometry(0.11, 0.34, 0.11);
   S.gGun    = new THREE.BoxGeometry(0.05, 0.05, 0.38);
@@ -458,34 +458,79 @@ function buildSharedGeos() {
 }
 
 function buildScene() {
-  // ── GROUND — bright grass ──
-  const groundGeo = new THREE.PlaneGeometry(130, 90, 1, 1);
-  const groundMat = new THREE.MeshLambertMaterial({ color:0x5a8a3a });
+  // ── GROUND — rich layered terrain, NO grid ──
+  // Base ground with vertex color variation for a natural look
+  const groundGeo = new THREE.PlaneGeometry(140, 100, 28, 20);
+  // Slightly undulate vertices for organic feel
+  const posAttr = groundGeo.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const x = posAttr.getX(i), y = posAttr.getY(i);
+    // Keep edges flat, add gentle bumps in the middle
+    const edgeDamp = Math.max(0, 1 - (Math.abs(x)/65 + Math.abs(y)/48));
+    posAttr.setZ(i, Math.sin(x*0.18)*0.22 + Math.cos(y*0.24)*0.18 + (Math.random()-0.5)*0.08 * edgeDamp);
+  }
+  groundGeo.computeVertexNormals();
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0x3d7a28 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI/2;
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Dirt path in center
-  const pathGeo = new THREE.PlaneGeometry(8, 90);
-  const pathMat = new THREE.MeshLambertMaterial({ color:0xa08050 });
-  const path = new THREE.Mesh(pathGeo, pathMat);
-  path.rotation.x = -Math.PI/2;
-  path.position.set(0, 0.01, 0);
-  path.receiveShadow = true;
-  scene.add(path);
+  // Darker green patches — scattered organic zones
+  const patchGeo = new THREE.PlaneGeometry(140, 100, 14, 10);
+  // We'll use a second layer for color variation by tinting with vertex colors
+  const patchMat = new THREE.MeshLambertMaterial({ color: 0x2e6020, transparent: true, opacity: 0.55 });
+  const patch = new THREE.Mesh(patchGeo, patchMat);
+  patch.rotation.x = -Math.PI/2;
+  patch.position.y = 0.01;
+  scene.add(patch);
 
-  // Grid lines (subtle)
-  const grid = new THREE.GridHelper(130, 65, 0x4a7a30, 0x4a7a30);
-  grid.position.y = 0.02;
-  scene.add(grid);
+  // Soft sandy/golden battle-worn center strip
+  const stripGeo = new THREE.PlaneGeometry(12, 100);
+  const stripMat = new THREE.MeshLambertMaterial({ color: 0xc4a255, transparent: true, opacity: 0.7 });
+  const strip = new THREE.Mesh(stripGeo, stripMat);
+  strip.rotation.x = -Math.PI/2;
+  strip.position.y = 0.015;
+  strip.receiveShadow = true;
+  scene.add(strip);
 
-  // Center dividing line
-  const lGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0,0.05,-44), new THREE.Vector3(0,0.05,44)
-  ]);
-  const lMat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.2 });
-  scene.add(new THREE.Line(lGeo, lMat));
+  // Worn dirt patches in the center combat zone
+  const dirtPositions = [[0,0],[2,-4],[-3,5],[1,8],[-1,-7],[4,2],[-4,-3],[0,12],[0,-12]];
+  const dirtMat = new THREE.MeshLambertMaterial({ color: 0xb8904a, transparent: true, opacity: 0.6 });
+  dirtPositions.forEach(([x,z]) => {
+    const dGeo = new THREE.CircleGeometry(1.5+Math.random()*2.5, 8);
+    const d = new THREE.Mesh(dGeo, dirtMat);
+    d.rotation.x = -Math.PI/2;
+    d.position.set(x+(Math.random()-0.5)*3, 0.02, z+(Math.random()-0.5)*3);
+    d.scale.set(1+Math.random(), 1, 0.5+Math.random()*0.8);
+    scene.add(d);
+  });
+
+  // Subtle dark green grass tufts (small raised discs)
+  const tuffMat = new THREE.MeshLambertMaterial({ color: 0x1e4d12 });
+  for (let i = 0; i < 60; i++) {
+    const tGeo = new THREE.CircleGeometry(0.3+Math.random()*0.5, 5);
+    const t = new THREE.Mesh(tGeo, tuffMat);
+    t.rotation.x = -Math.PI/2;
+    // Avoid center strip
+    const side = Math.random()>0.5?1:-1;
+    t.position.set(
+      side*(8+Math.random()*30),
+      0.025,
+      (Math.random()-0.5)*55
+    );
+    scene.add(t);
+  }
+
+  // Center battle line marker (faint white dashes)
+  for (let z = -40; z < 40; z += 4) {
+    const dashGeo = new THREE.PlaneGeometry(0.15, 1.8);
+    const dashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 });
+    const dash = new THREE.Mesh(dashGeo, dashMat);
+    dash.rotation.x = -Math.PI/2;
+    dash.position.set(0, 0.03, z);
+    scene.add(dash);
+  }
 
   // Rocks
   const rockPos = [[-5,3],[5,-4],[0,0],[-9,7],[9,-7],[-4,-10],[4,10],[-13,1],[13,-1],[0,6],[0,-6],[-7,-2],[7,2]];
@@ -571,34 +616,37 @@ function makeSoldierMesh(team) {
 
   // Head — plain armor color, no visor strip
   const head = new THREE.Mesh(S.gHead, m.armor);
-  head.position.y = 0.97;
+  head.position.y = 1.02;
   head.castShadow=true;
   g.add(head);
 
   // Face: if texture uploaded → show it full-face, else show a subtle screen glow
   if (faceTex) {
-    // Full front-face texture — covers entire helmet face
+    // Clone texture so we can flip it without affecting others
+    const tex = faceTex.clone();
+    tex.needsUpdate = true;
+    // Mirror horizontally to fix backwards display
+    tex.repeat.set(-1, 1);
+    tex.offset.set(1, 0);
+    tex.wrapS = THREE.RepeatWrapping;
     const fm = new THREE.MeshBasicMaterial({
-      map: faceTex,
+      map: tex,
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -1,
     });
     const fp = new THREE.Mesh(S.gFace, fm);
-    // Place flush with front face of head (depth 0.28/2 = 0.14 + tiny offset)
-    fp.position.set(0, 0.97, 0.141);
+    // Flush with front face of head (depth 0.40/2 = 0.20 + tiny offset)
+    fp.position.set(0, 1.02, 0.201);
     g.add(fp);
   } else {
-    // Default: a glowing visor color block (no stripe on top)
+    // Default: a glowing visor color block
     const blue = team==='blue';
-    const visorMat = new THREE.MeshBasicMaterial({
-      color: blue?0x44eeff:0xff5500,
-    });
-    // Just a thin emissive band across the lower half of the face
-    const vGeo = new THREE.BoxGeometry(0.26, 0.10, 0.01);
+    const visorMat = new THREE.MeshBasicMaterial({ color: blue?0x44eeff:0xff5500 });
+    const vGeo = new THREE.BoxGeometry(0.36, 0.13, 0.01);
     const visor = new THREE.Mesh(vGeo, visorMat);
-    visor.position.set(0, 0.94, 0.141);
+    visor.position.set(0, 0.98, 0.202);
     g.add(visor);
   }
 
@@ -1015,7 +1063,7 @@ function setupFaceInput(inputId, previewId, team){
     prev.innerHTML=`<img src="${url}"><input type="file" accept="image/*" id="${inputId}" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">`;
     setupFaceInput(inputId,previewId,team);
     new THREE.TextureLoader().load(url,tex=>{
-      tex.flipY=false;
+      tex.needsUpdate=true;
       if(team==='blue')blueFaceTex=tex; else redFaceTex=tex;
       delete S['m_'+team];
       addLog(`${team==='blue'?'Alpha':'Omega'} face image ready!`,'good');
